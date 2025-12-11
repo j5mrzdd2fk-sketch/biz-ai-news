@@ -1,0 +1,5 @@
+# このファイルを .env にリネームしてOpenAI APIキーを設定してください
+# OpenAI API Key
+# https://platform.openai.com/api-keys でAPIキーを取得できます
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+

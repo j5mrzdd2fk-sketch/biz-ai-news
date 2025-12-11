@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: biz-ai-news
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python webapp/app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_SHEETS_TOKEN
+        sync: false
+      - key: GOOGLE_SHEETS_CREDENTIALS
+        sync: false
+

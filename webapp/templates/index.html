@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIZ AI NEWS - ビジネスAIニュースポータル</title>
+    <meta name="description" content="AIとテクノロジーの最新ニュースを自動収集・要約。ビジネスパーソンに必要なAI情報を効率的にお届けします。">
+    <meta name="keywords" content="AI,人工知能,ニュース,ビジネス,テクノロジー,DX,ChatGPT,生成AI">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4a7c9b;
+            --primary-dark: #3d6a86;
+            --primary-light: #e8f1f6;
+            --secondary: #6b7b8a;
+            --bg-main: #f7f8fa;
+            --bg-card: #ffffff;
+            --bg-hover: #f0f4f7;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #888888;
+            --border: #e0e4e8;
+            --header-bg: #ffffff;
+            --score-5: #d4a03c;
+            --score-4: #5a9a6e;
+            --score-3: #4a7c9b;
+            --score-2: #8a9aa8;
+            --score-1: #aab4bc;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .logo span {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            -webkit-text-fill-color: var(--text-secondary);
+            margin-left: 8px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .stats strong {
+            color: var(--primary);
+        }
+
+        /* Filters */
+        .filters {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        select, input[type="text"] {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        select:focus, input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        input[type="text"] {
+            min-width: 200px;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-hover);
+        }
+
+        /* Table */
+        .table-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f5f7fa;
+        }
+
+        th {
+            padding: 14px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 16px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+            vertical-align: top;
+        }
+
+        tr:hover {
+            background: var(--bg-hover);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Column widths */
+        .col-score { width: 80px; text-align: center; }
+        .col-source { width: 100px; }
+        .col-category { width: 110px; }
+        .col-title { width: 280px; }
+        .col-date { width: 110px; }
+        .col-link { width: 120px; text-align: center; }
+
+        /* Badges */
+        .source-badge {
+            background: var(--primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        .category-badge {
+            background: var(--primary-light);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: inline-block;
+        }
+        
+        /* カテゴリ別の色分け */
+        .category-badge.企業効率化 {
+            background: rgba(38, 89, 140, 0.1);
+            color: rgb(26, 89, 140);
+            border-color: rgb(38, 89, 140);
+        }
+        .category-badge.DX・デジタル化 {
+            background: rgba(64, 115, 77, 0.1);
+            color: rgb(64, 115, 77);
+            border-color: rgb(64, 115, 77);
+        }
+        .category-badge.企業導入 {
+            background: rgba(128, 77, 115, 0.1);
+            color: rgb(128, 77, 115);
+            border-color: rgb(128, 77, 115);
+        }
+        .category-badge.AI・テクノロジー {
+            background: rgba(77, 51, 153, 0.1);
+            color: rgb(77, 51, 153);
+            border-color: rgb(77, 51, 153);
+        }
+        .category-badge.その他 {
+            background: rgba(102, 102, 102, 0.1);
+            color: rgb(102, 102, 102);
+            border-color: rgb(102, 102, 102);
+        }
+
+        /* Score */
+        .score-wrapper {
+            text-align: center;
+        }
+        .score {
+            font-size: 0.9rem;
+            letter-spacing: -1px;
+            display: block;
+        }
+        .score-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .score-5 { color: var(--score-5); }
+        .score-4 { color: var(--score-4); }
+        .score-3 { color: var(--score-3); }
+        .score-2 { color: var(--score-2); }
+        .score-1 { color: var(--score-1); }
+
+        /* Title */
+        .news-title {
+            font-weight: 600;
+            line-height: 1.5;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f0f2f5;
+        }
+
+        .news-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .news-title a:hover {
+            color: var(--primary);
+        }
+
+        /* Summary */
+        .summary {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.8;
+            margin-top: 4px;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        
+        .col-summary {
+            vertical-align: top;
+            padding: 12px 16px;
+        }
+
+        /* Date */
+        .date {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        /* Link */
+        .link-btn {
+            color: white;
+            background: var(--primary);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .link-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(74, 124, 155, 0.3);
+        }
+
+        /* Tags */
+        .tags {
+            margin-top: 6px;
+        }
+
+        .tag {
+            background: #f0f2f5;
+            color: var(--text-muted);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            margin-right: 4px;
+        }
+
+        /* Legend */
+        .legend {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-right: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-stars {
+            font-size: 0.85rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 30px 0 80px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+            background: var(--bg-main);
+            margin-top: 20px;
+            margin-bottom: 0;
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .col-summary { display: none; }
+        }
+
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-form {
+                flex-direction: column;
+            }
+            input[type="text"] {
+                min-width: 100%;
+            }
+            .col-category { display: none; }
+            .col-tags { display: none; }
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 0 0 12px 12px;
+            border-top: 1px solid var(--border);
+            margin-top: -12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .pagination-info {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .pagination-nav {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+            padding: 0 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .page-link:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .page-link.current {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .page-dots {
+            color: var(--text-muted);
+            padding: 0 5px;
+        }
+
+        @media (max-width: 768px) {
+            .pagination {
+                flex-direction: column;
+                text-align: center;
+            }
+            .pagination-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .page-link {
+                min-width: 36px;
+                height: 36px;
+                font-size: 0.85rem;
+            }
+        }
+
+        /* Survey Section */
+        .survey-section {
+            margin: 40px 0 60px;
+        }
+
+        .survey-card {
+            background: linear-gradient(135deg, #f8fafe 0%, #f0f5fa 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(74, 124, 155, 0.08);
+        }
+
+        .survey-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .survey-close:hover {
+            background: rgba(0,0,0,0.05);
+            color: var(--text-secondary);
+        }
+
+        .survey-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .survey-icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .survey-header h3 {
+            font-size: 1.2rem;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .survey-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .survey-question {
+            text-align: center;
+        }
+
+        .survey-question label {
+            display: block;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+
+        .survey-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .survey-options button {
+            background: white;
+            border: 2px solid var(--border);
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 80px;
+            line-height: 1.3;
+        }
+
+        .survey-options button:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .survey-options button.selected {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .survey-options button small {
+            display: block;
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+
+        .survey-thanks {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .thanks-icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .survey-thanks p {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .survey-thanks small {
+            color: var(--text-secondary);
+        }
+
+        .survey-skip {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .skip-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 8px 16px;
+        }
+
+        .skip-btn:hover {
+            color: var(--text-secondary);
+            text-decoration: underline;
+        }
+
+        .survey-progress {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .progress-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--border);
+        }
+
+        .progress-dot.active {
+            background: var(--primary);
+        }
+
+        @media (max-width: 768px) {
+            .survey-card {
+                padding: 20px;
+                margin: 0 10px;
+            }
+            .survey-options button {
+                min-width: 70px;
+                padding: 10px 12px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo" style="text-decoration: none;">
+                    BIZ AI NEWS
+                    <span>ビジネスAIニュース</span>
+                </a>
+                <div class="stats">
+                    <span>📰 全<strong>{{ total_count }}</strong>件</span>
+                    <span>🔍 表示<strong>{{ filtered_count }}</strong>件</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <form class="filters" method="get" action="/">
+            <div class="filter-group">
+                <label>カテゴリ:</label>
+                <select name="category" onchange="this.form.submit()">
+                    <option value="">すべて</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if cat == current_category %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>重要度:</label>
+                <select name="score" onchange="this.form.submit()">
+                    <option value="">すべて</option>
+                    <option value="5" {% if current_score == '5' %}selected{% endif %}>⭐5 必読のみ</option>
+                    <option value="4" {% if current_score == '4' %}selected{% endif %}>⭐4以上</option>
+                    <option value="3" {% if current_score == '3' %}selected{% endif %}>⭐3以上</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>並び順:</label>
+                <select name="sort" onchange="this.form.submit()">
+                    <option value="date" {% if current_sort == 'date' %}selected{% endif %}>日付順（新着順）</option>
+                    <option value="score" {% if current_sort == 'score' %}selected{% endif %}>重要度順（高→低）</option>
+                    <option value="category" {% if current_sort == 'category' %}selected{% endif %}>カテゴリ順</option>
+                    <option value="source" {% if current_sort == 'source' %}selected{% endif %}>ソース順</option>
+                </select>
+            </div>
+
+            <div class="search-form">
+                <input type="text" name="q" placeholder="🔍 キーワードで検索..." value="{{ current_search }}">
+                <button type="submit" class="btn">検索</button>
+                {% if current_category or current_score or current_search or current_sort %}
+                <a href="/" class="btn btn-secondary">クリア</a>
+                {% endif %}
+            </div>
+        </form>
+
+        {% if news_list %}
+        <div class="legend">
+            <span class="legend-title">📊 重要度の目安</span>
+            <div class="legend-item">
+                <span class="legend-stars score-5">★5</span>
+                <span>必読（業界に大きな影響）</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-stars score-4">★4</span>
+                <span>重要（具体的な成果あり）</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-stars score-3">★3</span>
+                <span>参考（一般的な事例）</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-stars score-2">★2</span>
+                <span>軽い情報</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-stars score-1">★1</span>
+                <span>低い</span>
+            </div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="col-score">重要度</th>
+                        <th class="col-source">ソース</th>
+                        <th class="col-category">カテゴリ</th>
+                        <th class="col-title">タイトル</th>
+                        <th class="col-summary">要約</th>
+                        <th class="col-date">日付</th>
+                        <th class="col-link">リンク</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for news in news_list %}
+                    <tr>
+                        <td class="col-score">
+                            <div class="score-wrapper">
+                                <span class="score score-{{ news.score }}">{{ news.score_display }}</span>
+                                <div class="score-label">{{ news.score }} / 5</div>
+                            </div>
+                        </td>
+                        <td class="col-source">
+                            <span class="source-badge">{{ news.source }}</span>
+                        </td>
+                        <td class="col-category">
+                            <span class="category-badge {{ news.category }}">{{ news.category }}</span>
+                        </td>
+                        <td class="col-title">
+                            <div class="news-title">
+                                {% if news.url %}
+                                <a href="{{ news.url }}" target="_blank" rel="noopener">{{ news.title }}</a>
+                                {% else %}
+                                {{ news.title }}
+                                {% endif %}
+                            </div>
+                            {% if news.tags %}
+                            <div class="tags">
+                                {% for tag in news.tags.split(',')[:2] %}
+                                {% if tag.strip() %}
+                                <span class="tag">{{ tag.strip() }}</span>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="col-summary">
+                            <div class="summary">{{ news.summary[:150] }}{% if news.summary|length > 150 %}...{% endif %}</div>
+                        </td>
+                        <td class="col-date">
+                            <span class="date">{{ news.date }}</span>
+                        </td>
+                        <td class="col-link">
+                            {% if news.url %}
+                            <a href="{{ news.url }}" target="_blank" rel="noopener" class="link-btn">🔗 記事を開く</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- ページネーション -->
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            <div class="pagination-info">
+                {{ filtered_count }}件中 {{ (current_page - 1) * per_page + 1 }}〜{{ [current_page * per_page, filtered_count] | min }}件を表示
+            </div>
+            <div class="pagination-nav">
+                {% if current_page > 1 %}
+                <a href="?page={{ current_page - 1 }}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_score %}&score={{ current_score }}{% endif %}{% if current_search %}&q={{ current_search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" class="page-link">← 前へ</a>
+                {% endif %}
+                
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == current_page %}
+                    <span class="page-link current">{{ p }}</span>
+                    {% elif p == 1 or p == total_pages or (p >= current_page - 2 and p <= current_page + 2) %}
+                    <a href="?page={{ p }}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_score %}&score={{ current_score }}{% endif %}{% if current_search %}&q={{ current_search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" class="page-link">{{ p }}</a>
+                    {% elif p == current_page - 3 or p == current_page + 3 %}
+                    <span class="page-dots">...</span>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if current_page < total_pages %}
+                <a href="?page={{ current_page + 1 }}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_score %}&score={{ current_score }}{% endif %}{% if current_search %}&q={{ current_search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}" class="page-link">次へ →</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="empty-state">
+            <h2>🔍 該当するニュースがありません</h2>
+            <p>フィルタ条件を変更してみてください</p>
+        </div>
+        {% endif %}
+
+        <!-- アンケートセクション -->
+        <div class="survey-section" id="surveySection">
+            <div class="survey-card">
+                <button class="survey-close" onclick="closeSurvey()" title="閉じる">×</button>
+                <div class="survey-header">
+                    <span class="survey-icon">📊</span>
+                    <h3>30秒アンケート</h3>
+                    <p class="survey-desc">サービス改善のため、よろしければ教えてください</p>
+                </div>
+                
+                <div class="survey-questions" id="surveyQuestions">
+                    <!-- Q1: 年代 -->
+                    <div class="survey-question" id="q1">
+                        <label>あなたの年代は？</label>
+                        <div class="survey-options">
+                            <button onclick="selectAnswer('age', '20代')">20代</button>
+                            <button onclick="selectAnswer('age', '30代')">30代</button>
+                            <button onclick="selectAnswer('age', '40代')">40代</button>
+                            <button onclick="selectAnswer('age', '50代')">50代</button>
+                            <button onclick="selectAnswer('age', '60代以上')">60代〜</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Q2: 職種 -->
+                    <div class="survey-question" id="q2" style="display: none;">
+                        <label>ご職種は？</label>
+                        <div class="survey-options">
+                            <button onclick="selectAnswer('job', 'エンジニア・開発')">エンジニア<br><small>開発</small></button>
+                            <button onclick="selectAnswer('job', '企画・マーケ')">企画<br><small>マーケ</small></button>
+                            <button onclick="selectAnswer('job', '営業')">営業</button>
+                            <button onclick="selectAnswer('job', '管理職')">管理職<br><small>マネージャー</small></button>
+                            <button onclick="selectAnswer('job', '経営者・役員')">経営者<br><small>役員</small></button>
+                            <button onclick="selectAnswer('job', 'コンサル・士業')">コンサル<br><small>士業</small></button>
+                            <button onclick="selectAnswer('job', '研究・R&D')">研究<br><small>R&D</small></button>
+                            <button onclick="selectAnswer('job', '事務・バックオフィス')">事務<br><small>管理部門</small></button>
+                            <button onclick="selectAnswer('job', 'フリーランス')">フリー<br><small>ランス</small></button>
+                            <button onclick="selectAnswer('job', '学生・その他')">学生<br><small>その他</small></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Q3: 業種 -->
+                    <div class="survey-question" id="q3" style="display: none;">
+                        <label>ご業種は？</label>
+                        <div class="survey-options">
+                            <button onclick="selectAnswer('industry', 'IT・Web')">IT<br><small>Web</small></button>
+                            <button onclick="selectAnswer('industry', '製造')">製造</button>
+                            <button onclick="selectAnswer('industry', '金融・保険')">金融<br><small>保険</small></button>
+                            <button onclick="selectAnswer('industry', '小売・サービス')">小売<br><small>サービス</small></button>
+                            <button onclick="selectAnswer('industry', '医療・ヘルスケア')">医療<br><small>ヘルスケア</small></button>
+                            <button onclick="selectAnswer('industry', '教育')">教育</button>
+                            <button onclick="selectAnswer('industry', '建設・不動産')">建設<br><small>不動産</small></button>
+                            <button onclick="selectAnswer('industry', 'メディア・広告')">メディア<br><small>広告</small></button>
+                            <button onclick="selectAnswer('industry', '官公庁・公務')">官公庁<br><small>公務</small></button>
+                            <button onclick="selectAnswer('industry', 'その他')">その他</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Q4: 流入元 -->
+                    <div class="survey-question" id="q4" style="display: none;">
+                        <label>このサイトをどこで知りましたか？</label>
+                        <div class="survey-options">
+                            <button onclick="selectAnswer('source', 'Google検索')">Google<br><small>検索</small></button>
+                            <button onclick="selectAnswer('source', 'SNS')">SNS</button>
+                            <button onclick="selectAnswer('source', '知人の紹介')">知人の<br><small>紹介</small></button>
+                            <button onclick="selectAnswer('source', 'その他')">その他</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="survey-thanks" id="surveyThanks" style="display: none;">
+                    <span class="thanks-icon">🙏</span>
+                    <p>ご協力ありがとうございました！</p>
+                    <small>より良いサービスを目指します</small>
+                </div>
+                
+                <div class="survey-skip">
+                    <button onclick="closeSurvey()" class="skip-btn">スキップ</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p style="margin-bottom: 10px;">
+                <a href="/privacy">プライバシーポリシー</a> | 
+                <a href="/about">運営者情報</a> | 
+                <a href="/contact">お問い合わせ</a>
+            </p>
+            <p>BIZ AI NEWS © 2024 | 各記事の著作権は元サイトに帰属します</p>
+        </div>
+    </footer>
+
+    <script>
+        // アンケート回答データ
+        const surveyData = {};
+        let currentQuestion = 1;
+        const totalQuestions = 4;  // 質問数
+
+        // 既に回答済みか確認
+        if (localStorage.getItem('surveyCompleted')) {
+            document.getElementById('surveySection').style.display = 'none';
+        }
+
+        function selectAnswer(type, value) {
+            surveyData[type] = value;
+            
+            // 選択状態を表示
+            const currentQ = document.getElementById('q' + currentQuestion);
+            currentQ.querySelectorAll('button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            event.target.closest('button').classList.add('selected');
+
+            // 次の質問へ
+            setTimeout(() => {
+                if (currentQuestion < totalQuestions) {
+                    document.getElementById('q' + currentQuestion).style.display = 'none';
+                    currentQuestion++;
+                    document.getElementById('q' + currentQuestion).style.display = 'block';
+                } else {
+                    // 完了
+                    completeSurvey();
+                }
+            }, 300);
+        }
+
+        function completeSurvey() {
+            // 回答を保存
+            console.log('Survey Data:', surveyData);
+            
+            // サーバーに送信
+            fetch('/api/survey', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(surveyData)
+            }).catch(() => {});  // エラーは無視
+
+            // 完了表示
+            document.getElementById('surveyQuestions').style.display = 'none';
+            document.querySelector('.survey-skip').style.display = 'none';
+            document.getElementById('surveyThanks').style.display = 'block';
+            
+            // ローカルストレージに保存
+            localStorage.setItem('surveyCompleted', 'true');
+            localStorage.setItem('surveyData', JSON.stringify(surveyData));
+
+            // 3秒後に非表示
+            setTimeout(() => {
+                document.getElementById('surveySection').style.opacity = '0';
+                document.getElementById('surveySection').style.transition = 'opacity 0.5s';
+                setTimeout(() => {
+                    document.getElementById('surveySection').style.display = 'none';
+                }, 500);
+            }, 2500);
+        }
+
+        function closeSurvey() {
+            localStorage.setItem('surveySkipped', 'true');
+            document.getElementById('surveySection').style.opacity = '0';
+            document.getElementById('surveySection').style.transition = 'opacity 0.3s';
+            setTimeout(() => {
+                document.getElementById('surveySection').style.display = 'none';
+            }, 300);
+        }
+    </script>
+</body>
+</html>
