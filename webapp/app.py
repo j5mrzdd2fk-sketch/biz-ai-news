@@ -457,37 +457,27 @@ def sitemap():
         urlset = ET.Element('urlset')
         urlset.set('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9')
         
-        # ホームページ
+        # ホームページのみを含める
+        # 注意: サイトマップには自分のドメインのURLのみを含める必要があります
+        # 外部URL（prtimes.jpなど）は含めないようにします
+        base_url = 'https://biz-ai-news.onrender.com'
+        
         url = ET.SubElement(urlset, 'url')
-        ET.SubElement(url, 'loc').text = 'https://biz-ai-news.onrender.com'
+        ET.SubElement(url, 'loc').text = base_url
         ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
         ET.SubElement(url, 'changefreq').text = 'hourly'
         ET.SubElement(url, 'priority').text = '1.0'
         
-        # ニュース記事（最新50件）
-        news_list = get_all_news()
-        for news in news_list[:50]:  # 最新50件のみ
-            url = ET.SubElement(urlset, 'url')
-            # 記事のURL（実際のURLを使用）
-            article_url = news.get('url', 'https://biz-ai-news.onrender.com')
-            ET.SubElement(url, 'loc').text = article_url
-            # 日付
-            if news.get('date'):
-                try:
-                    # 日付をパースしてISO形式に変換
-                    date_str = news['date']
-                    if isinstance(date_str, str):
-                        # 様々な日付形式に対応
-                        date_obj = datetime.strptime(date_str.split()[0], '%Y-%m-%d')
-                        ET.SubElement(url, 'lastmod').text = date_obj.strftime('%Y-%m-%d')
-                    else:
-                        ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
-                except:
-                    ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
-            else:
-                ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
-            ET.SubElement(url, 'changefreq').text = 'weekly'
-            ET.SubElement(url, 'priority').text = '0.8'
+        # 将来的に記事の個別ページを作成する場合は、以下のコードを使用できます
+        # 現在は記事の個別ページがないため、ホームページのみをサイトマップに含めます
+        # news_list = get_all_news()
+        # for news in news_list[:50]:
+        #     # 記事の個別ページURLを生成（例: /article/{id}）
+        #     article_id = news.get('id') or news.get('title', '').replace(' ', '-')
+        #     article_url = f"{base_url}/article/{article_id}"
+        #     url = ET.SubElement(urlset, 'url')
+        #     ET.SubElement(url, 'loc').text = article_url
+        #     # 日付処理...
         
         # XMLを文字列に変換
         xml_str = ET.tostring(urlset, encoding='utf-8', method='xml')
