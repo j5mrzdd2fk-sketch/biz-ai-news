@@ -446,6 +446,73 @@ def refresh_news():
     })
 
 
+@app.route('/sitemap.xml')
+def sitemap():
+    """XMLサイトマップを生成"""
+    try:
+        from flask import Response
+        import xml.etree.ElementTree as ET
+        from datetime import datetime
+        
+        # ルート要素を作成
+        urlset = ET.Element('urlset')
+        urlset.set('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9')
+        
+        # ホームページ
+        url = ET.SubElement(urlset, 'url')
+        ET.SubElement(url, 'loc').text = 'https://biz-ai-news.onrender.com'
+        ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
+        ET.SubElement(url, 'changefreq').text = 'hourly'
+        ET.SubElement(url, 'priority').text = '1.0'
+        
+        # ニュース記事（最新50件）
+        news_list = get_all_news()
+        for news in news_list[:50]:  # 最新50件のみ
+            url = ET.SubElement(urlset, 'url')
+            # 記事のURL（実際のURLを使用）
+            article_url = news.get('url', 'https://biz-ai-news.onrender.com')
+            ET.SubElement(url, 'loc').text = article_url
+            # 日付
+            if news.get('date'):
+                try:
+                    # 日付をパースしてISO形式に変換
+                    date_str = news['date']
+                    if isinstance(date_str, str):
+                        # 様々な日付形式に対応
+                        date_obj = datetime.strptime(date_str.split()[0], '%Y-%m-%d')
+                        ET.SubElement(url, 'lastmod').text = date_obj.strftime('%Y-%m-%d')
+                    else:
+                        ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
+                except:
+                    ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
+            else:
+                ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
+            ET.SubElement(url, 'changefreq').text = 'weekly'
+            ET.SubElement(url, 'priority').text = '0.8'
+        
+        # XMLを文字列に変換
+        xml_str = ET.tostring(urlset, encoding='utf-8', method='xml')
+        xml_str = b'<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
+        
+        return Response(xml_str, mimetype='application/xml')
+    except Exception as e:
+        log_exception(logger, e, "サイトマップ生成エラー")
+        return Response('<?xml version="1.0" encoding="UTF-8"?><urlset></urlset>', mimetype='application/xml')
+
+
+@app.route('/robots.txt')
+def robots():
+    """robots.txtを返す"""
+    robots_content = """User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://biz-ai-news.onrender.com/sitemap.xml
+"""
+    return Response(robots_content, mimetype='text/plain')
+
+
 if __name__ == '__main__':
     # 本番環境用の設定
     port = int(os.environ.get('PORT', 5001))
