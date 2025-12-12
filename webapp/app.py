@@ -7,7 +7,7 @@ AIニュースポータル - Webアプリケーション
 import os
 import sys
 import traceback
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, Response
 from datetime import datetime
 
 # 親ディレクトリをパスに追加
@@ -450,7 +450,6 @@ def refresh_news():
 def sitemap():
     """XMLサイトマップを生成"""
     try:
-        from flask import Response
         import xml.etree.ElementTree as ET
         from datetime import datetime
         
@@ -503,14 +502,24 @@ def sitemap():
 @app.route('/robots.txt')
 def robots():
     """robots.txtを返す"""
-    robots_content = """User-agent: *
+    try:
+        robots_content = """User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /api/
 
 Sitemap: https://biz-ai-news.onrender.com/sitemap.xml
 """
-    return Response(robots_content, mimetype='text/plain')
+        return Response(robots_content, mimetype='text/plain')
+    except Exception as e:
+        log_exception(logger, e, "robots.txt生成エラー")
+        # エラー時でも基本的なrobots.txtを返す
+        robots_content = """User-agent: *
+Allow: /
+
+Sitemap: https://biz-ai-news.onrender.com/sitemap.xml
+"""
+        return Response(robots_content, mimetype='text/plain')
 
 
 if __name__ == '__main__':
