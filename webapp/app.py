@@ -7,7 +7,9 @@ AIニュースポータル - Webアプリケーション
 import os
 import sys
 import traceback
-from flask import Flask, render_template, jsonify, request, Response
+import hashlib
+import urllib.parse
+from flask import Flask, render_template, jsonify, request, Response, abort
 from datetime import datetime
 
 # 親ディレクトリをパスに追加
@@ -37,6 +39,15 @@ TOKEN_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "token.jso
 CREDENTIALS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "credentials.json")
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive.file']
+
+
+def generate_article_id(title, date, source):
+    """記事の一意のIDを生成（タイトル、日付、ソースから）"""
+    # タイトル、日付、ソースを組み合わせてハッシュ化
+    combined = f"{title}|{date}|{source}"
+    # SHA256ハッシュを生成し、最初の16文字を使用
+    article_id = hashlib.sha256(combined.encode('utf-8')).hexdigest()[:16]
+    return article_id
 
 
 def get_sheets_client():
@@ -119,7 +130,6 @@ def get_all_news(use_cache=True):
                             url = row[7]
                         else:
                             # Google検索リンクを生成
-                            import urllib.parse
                             title = row[2]
                             url = f"https://www.google.com/search?q={urllib.parse.quote(title)}"
                         
@@ -128,7 +138,11 @@ def get_all_news(use_cache=True):
                         if len(row) > 9 and row[9]:
                             article_category = row[9]  # J列のカテゴリ情報
                         
+                        # 記事IDを生成
+                        article_id = generate_article_id(row[2], row[3], row[1])
+                        
                         news_item = {
+                            "id": article_id,
                             "no": row[0],
                             "source": row[1],
                             "title": row[2],
@@ -324,6 +338,54 @@ def contact():
     return render_template('contact.html')
 
 
+@app.route('/article/<article_id>')
+def article_detail(article_id):
+    """記事詳細ページ"""
+    try:
+        news_list = get_all_news()
+        
+        # 記事IDで記事を検索
+        article = None
+        for news in news_list:
+            if news.get("id") == article_id:
+                article = news
+                break
+        
+        if not article:
+            logger.warning(f"記事が見つかりません: article_id={article_id}")
+            abort(404)
+        
+        # 関連記事を取得（同じカテゴリの記事、最大5件）
+        related_articles = []
+        article_categories = [cat.strip() for cat in article["category"].split(",")]
+        for news in news_list:
+            if news.get("id") != article_id:
+                news_categories = [cat.strip() for cat in news["category"].split(",")]
+                # カテゴリが重複している記事を関連記事として追加
+                if any(cat in news_categories for cat in article_categories):
+                    related_articles.append(news)
+                    if len(related_articles) >= 5:
+                        break
+        
+        # 日付順でソート
+        related_articles.sort(key=lambda x: x["date"], reverse=True)
+        
+        # ベースURL
+        base_url = request.url_root.rstrip('/')
+        article_url = f"{base_url}/article/{article_id}"
+        
+        logger.info(f"記事詳細ページを表示: article_id={article_id}, title={article['title'][:50]}")
+        
+        return render_template('article.html',
+                              article=article,
+                              related_articles=related_articles,
+                              base_url=base_url,
+                              article_url=article_url)
+    except Exception as e:
+        log_exception(logger, e, f"記事詳細ページ表示エラー: article_id={article_id}")
+        abort(500)
+
+
 @app.route('/api/survey', methods=['POST'])
 def api_survey():
     """アンケート回答を保存"""
@@ -457,9 +519,7 @@ def sitemap():
         urlset = ET.Element('urlset')
         urlset.set('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9')
         
-        # ホームページのみを含める
-        # 注意: サイトマップには自分のドメインのURLのみを含める必要があります
-        # 外部URL（prtimes.jpなど）は含めないようにします
+        # ホームページを含める
         base_url = 'https://biz-ai-news.onrender.com'
         
         url = ET.SubElement(urlset, 'url')
@@ -468,16 +528,31 @@ def sitemap():
         ET.SubElement(url, 'changefreq').text = 'hourly'
         ET.SubElement(url, 'priority').text = '1.0'
         
-        # 将来的に記事の個別ページを作成する場合は、以下のコードを使用できます
-        # 現在は記事の個別ページがないため、ホームページのみをサイトマップに含めます
-        # news_list = get_all_news()
-        # for news in news_list[:50]:
-        #     # 記事の個別ページURLを生成（例: /article/{id}）
-        #     article_id = news.get('id') or news.get('title', '').replace(' ', '-')
-        #     article_url = f"{base_url}/article/{article_id}"
-        #     url = ET.SubElement(urlset, 'url')
-        #     ET.SubElement(url, 'loc').text = article_url
-        #     # 日付処理...
+        # 記事の個別ページをサイトマップに追加（最新100件）
+        try:
+            news_list = get_all_news()
+            for news in news_list[:100]:  # 最新100件のみ
+                if news.get('id'):
+                    article_url = f"{base_url}/article/{news['id']}"
+                    url = ET.SubElement(urlset, 'url')
+                    ET.SubElement(url, 'loc').text = article_url
+                    # 日付をパースしてlastmodに設定
+                    try:
+                        # 日付形式をパース（複数形式に対応）
+                        date_str = news.get('date', '')
+                        if date_str:
+                            # 日付をパース（簡易版）
+                            parsed_date = date_str.split()[0] if ' ' in date_str else date_str
+                            ET.SubElement(url, 'lastmod').text = parsed_date
+                        else:
+                            ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
+                    except:
+                        ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
+                    ET.SubElement(url, 'changefreq').text = 'weekly'
+                    ET.SubElement(url, 'priority').text = '0.8'
+        except Exception as e:
+            log_exception(logger, e, "サイトマップ: 記事ページの追加エラー")
+            # エラーが発生してもホームページのURLは含める
         
         # XMLを文字列に変換
         xml_str = ET.tostring(urlset, encoding='utf-8', method='xml')
@@ -510,6 +585,19 @@ Allow: /
 Sitemap: https://biz-ai-news.onrender.com/sitemap.xml
 """
         return Response(robots_content, mimetype='text/plain')
+
+
+@app.errorhandler(404)
+def not_found(error):
+    """404エラーハンドラー"""
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """500エラーハンドラー"""
+    log_exception(logger, error, "500エラーが発生しました")
+    return render_template('500.html'), 500
 
 
 if __name__ == '__main__':

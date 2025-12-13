@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ article.title }} - BIZ AI NEWS</title>
+    <meta name="description" content="{{ article.summary[:160] }}{% if article.summary|length > 160 %}...{% endif %}">
+    <meta name="keywords" content="{{ article.tags }},{{ article.category }},AI,人工知能,ニュース,ビジネス">
+    
+    <!-- OGP (Open Graph Protocol) -->
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="{{ article.title }}">
+    <meta property="og:description" content="{{ article.summary[:200] }}{% if article.summary|length > 200 %}...{% endif %}">
+    <meta property="og:url" content="{{ article_url }}">
+    <meta property="og:site_name" content="BIZ AI NEWS">
+    <meta property="og:locale" content="ja_JP">
+    <meta property="article:published_time" content="{{ article.date }}">
+    <meta property="article:author" content="{{ article.source }}">
+    <meta property="article:section" content="{{ article.category }}">
+    {% if article.tags %}
+    {% for tag in article.tags.split(',')[:5] %}
+    <meta property="article:tag" content="{{ tag.strip() }}">
+    {% endfor %}
+    {% endif %}
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ article.title }}">
+    <meta name="twitter:description" content="{{ article.summary[:200] }}{% if article.summary|length > 200 %}...{% endif %}">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="{{ article_url }}">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1202448154240053"
+         crossorigin="anonymous"></script>
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WQD1WB0GER"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-WQD1WB0GER');
+    </script>
+    
+    <!-- 構造化データ (JSON-LD) - Article -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "NewsArticle",
+      "headline": "{{ article.title|e }}",
+      "description": "{{ article.summary[:200]|e }}{% if article.summary|length > 200 %}...{% endif %}",
+      "datePublished": "{{ article.date }}",
+      "dateModified": "{{ article.date }}",
+      "author": {
+        "@type": "Organization",
+        "name": "{{ article.source|e }}"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "BIZ AI NEWS",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "{{ base_url }}/logo.png"
+        }
+      },
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "{{ article_url }}"
+      },
+      "articleSection": "{{ article.category|e }}",
+      "keywords": "{{ article.tags|e }}",
+      "url": "{{ article_url }}",
+      "inLanguage": "ja"
+    }
+    </script>
+    
+    <!-- 構造化データ (JSON-LD) - BreadcrumbList -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "ホーム",
+          "item": "{{ base_url }}"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "{{ article.category|e }}",
+          "item": "{{ base_url }}/?category={{ article.category|urlencode }}"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "{{ article.title[:50]|e }}",
+          "item": "{{ article_url }}"
+        }
+      ]
+    }
+    </script>
+    
+    <style>
+        :root {
+            --primary: #4a7c9b;
+            --primary-dark: #3d6a86;
+            --primary-light: #e8f1f6;
+            --secondary: #6b7b8a;
+            --bg-main: #f7f8fa;
+            --bg-card: #ffffff;
+            --bg-hover: #f0f4f7;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #888888;
+            --border: #e0e4e8;
+            --header-bg: #ffffff;
+            --score-5: #d4a03c;
+            --score-4: #5a9a6e;
+            --score-3: #4a7c9b;
+            --score-2: #8a9aa8;
+            --score-1: #aab4bc;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding-bottom: 100px;
+            line-height: 1.8;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .logo span {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-left: 8px;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            background: var(--bg-card);
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb span {
+            color: var(--text-muted);
+            margin: 0 8px;
+        }
+
+        /* Article Content */
+        .article-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 40px;
+            margin: 20px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--border);
+        }
+
+        .article-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .article-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .source-badge {
+            background: var(--primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .category-badge {
+            background: var(--primary-light);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .score-badge {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .score-5 { color: var(--score-5); }
+        .score-4 { color: var(--score-4); }
+        .score-3 { color: var(--score-3); }
+        .score-2 { color: var(--score-2); }
+        .score-1 { color: var(--score-1); }
+
+        .article-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.4;
+            margin-bottom: 15px;
+        }
+
+        .article-summary {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            line-height: 2;
+            margin: 30px 0;
+            padding: 20px;
+            background: var(--primary-light);
+            border-left: 4px solid var(--primary);
+            border-radius: 4px;
+        }
+
+        .article-tags {
+            margin: 20px 0;
+        }
+
+        .tag {
+            background: #f0f2f5;
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-right: 8px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+
+        .article-actions {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-hover);
+        }
+
+        /* Related Articles */
+        .related-articles {
+            margin-top: 40px;
+        }
+
+        .related-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+
+        .related-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .related-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+
+        .related-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .related-item a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .related-item-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .related-item-title:hover {
+            color: var(--primary);
+        }
+
+        .related-item-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 30px 0 80px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+            background: var(--bg-main);
+            margin-top: 40px;
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .article-container {
+                padding: 20px;
+            }
+
+            .article-title {
+                font-size: 1.5rem;
+            }
+
+            .article-summary {
+                font-size: 1rem;
+                padding: 15px;
+            }
+
+            .related-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    BIZ AI NEWS
+                    <span>ビジネスAIニュース</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="breadcrumb">
+        <div class="container">
+            <a href="/">ホーム</a>
+            <span>></span>
+            <a href="/?category={{ article.category|urlencode }}">{{ article.category }}</a>
+            <span>></span>
+            <span>{{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}</span>
+        </div>
+    </div>
+
+    <main class="container">
+        <article class="article-container">
+            <div class="article-header">
+                <div class="article-meta">
+                    <div class="meta-item">
+                        <span class="source-badge">{{ article.source }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="category-badge">{{ article.category }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="score-badge score-{{ article.score }}">{{ article.score_display }}</span>
+                        <span>重要度: {{ article.score }} / 5</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>📅 {{ article.date }}</span>
+                    </div>
+                </div>
+                <h1 class="article-title">{{ article.title }}</h1>
+            </div>
+
+            <div class="article-summary">
+                {{ article.summary }}
+            </div>
+
+            {% if article.tags %}
+            <div class="article-tags">
+                {% for tag in article.tags.split(',') %}
+                {% if tag.strip() %}
+                <span class="tag">{{ tag.strip() }}</span>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="article-actions">
+                <a href="{{ article.url }}" target="_blank" rel="noopener" class="btn">
+                    🔗 元記事を読む
+                </a>
+                <a href="/" class="btn btn-secondary">
+                    ← 一覧に戻る
+                </a>
+            </div>
+        </article>
+
+        {% if related_articles %}
+        <div class="related-articles">
+            <h2 class="related-title">📰 関連記事</h2>
+            <div class="related-list">
+                {% for related in related_articles %}
+                <div class="related-item">
+                    <a href="/article/{{ related.id }}">
+                        <div class="related-item-title">{{ related.title }}</div>
+                        <div class="related-item-meta">
+                            <span>{{ related.source }}</span> | 
+                            <span>{{ related.date }}</span> | 
+                            <span class="score-{{ related.score }}">{{ related.score_display }}</span>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </main>
+
+    <footer>
+        <div class="container">
+            <p style="margin-bottom: 10px;">
+                <a href="/privacy">プライバシーポリシー</a> | 
+                <a href="/about">運営者情報</a> | 
+                <a href="/contact">お問い合わせ</a>
+            </p>
+            <p>BIZ AI NEWS © 2024 | 各記事の著作権は元サイトに帰属します</p>
+        </div>
+    </footer>
+</body>
+</html>
+

@@ -14,7 +14,7 @@
 import os
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -27,6 +27,14 @@ from google.auth.transport.requests import Request
 
 # スクレイパー
 from scrapers import LedgeAiScraper, AINowScraper, PRTimesScraper, ZDNetScraper, ITmediaAiPlusScraper
+
+# 設定: 1回の実行で追加する記事数の上限
+# 環境変数 MAX_ARTICLES_PER_RUN で変更可能（デフォルト: 10件）
+MAX_ARTICLES_PER_RUN = int(os.getenv('MAX_ARTICLES_PER_RUN', '10'))
+
+# 設定: 古い記事を自動削除する期間（日数）
+# 環境変数 ARTICLE_RETENTION_DAYS で変更可能（デフォルト: 45日）
+ARTICLE_RETENTION_DAYS = int(os.getenv('ARTICLE_RETENTION_DAYS', '45'))
 
 # ログ設定
 from logger_config import get_scraper_logger, log_exception
@@ -559,6 +567,94 @@ class GoogleSheetsExporter:
             except Exception as e:
                 log_exception(logger, e, f"シート「{category}」の記事数取得エラー")
         return total
+    
+    def _parse_date(self, date_str: str) -> Optional[datetime]:
+        """日付文字列をパースしてdatetimeオブジェクトに変換"""
+        if not date_str or not date_str.strip():
+            return None
+        
+        date_str = date_str.strip()
+        date_formats = [
+            '%Y-%m-%d',           # 2024-12-12
+            '%Y/%m/%d',           # 2024/12/12
+            '%Y年%m月%d日',        # 2024年12月12日
+            '%Y-%m-%d %H:%M:%S',  # 2024-12-12 12:00:00
+            '%Y/%m/%d %H:%M:%S',  # 2024/12/12 12:00:00
+        ]
+        
+        for fmt in date_formats:
+            try:
+                return datetime.strptime(date_str.split()[0], fmt.split()[0])
+            except (ValueError, IndexError):
+                continue
+        
+        # 日付形式が不明な場合はNoneを返す
+        return None
+    
+    def delete_old_articles(self, retention_days: int = 30) -> int:
+        """一定期間経過した古い記事を削除"""
+        print(f"\n🗑️  {retention_days}日以上経過した古い記事を削除中...")
+        logger.info(f"古い記事の削除を開始（保持期間: {retention_days}日）")
+        
+        total_deleted = 0
+        cutoff_date = datetime.now() - timedelta(days=retention_days)
+        
+        for category, ws in self.worksheets.items():
+            try:
+                all_values = ws.get_all_values()
+                if len(all_values) <= 1:
+                    continue
+                
+                # ヘッダーを除く
+                data_rows = all_values[1:]
+                rows_to_delete = []
+                
+                for row_index, row in enumerate(data_rows, start=2):  # 2行目から（1行目はヘッダー）
+                    if len(row) < 4:
+                        continue
+                    
+                    date_str = row[3] if len(row) > 3 else ""  # 日付列（4列目、インデックス3）
+                    title = row[2] if len(row) > 2 else ""      # タイトル列（3列目、インデックス2）
+                    
+                    if not date_str or not title:
+                        continue
+                    
+                    # 日付をパース
+                    article_date = self._parse_date(date_str)
+                    if not article_date:
+                        # 日付がパースできない場合はスキップ（削除しない）
+                        continue
+                    
+                    # 保持期間を超えているかチェック
+                    if article_date < cutoff_date:
+                        rows_to_delete.append(row_index)
+                        print(f"   🗑️  [{category}] 行{row_index}: {title[:50]}... (日付: {date_str})")
+                        logger.info(f"削除対象: [{category}] 行{row_index} - {title[:50]}... (日付: {date_str})")
+                
+                # 行を削除（後ろから削除する必要がある）
+                if rows_to_delete:
+                    rows_to_delete.sort(reverse=True)
+                    for row_index in rows_to_delete:
+                        try:
+                            ws.delete_rows(row_index)
+                            total_deleted += 1
+                            logger.debug(f"行{row_index}を削除しました")
+                        except Exception as e:
+                            log_exception(logger, e, f"行{row_index}の削除エラー")
+                            print(f"      ⚠️ 行{row_index}の削除エラー: {e}")
+                
+            except Exception as e:
+                log_exception(logger, e, f"シート「{category}」の古い記事削除エラー")
+                print(f"   ⚠️ シート「{category}」の処理エラー: {e}")
+        
+        if total_deleted > 0:
+            print(f"   ✅ {total_deleted}件の古い記事を削除しました")
+            logger.info(f"古い記事の削除完了: {total_deleted}件")
+        else:
+            print(f"   ✅ 削除対象の記事はありませんでした")
+            logger.info("削除対象の記事はありませんでした")
+        
+        return total_deleted
 
 
 def filter_by_keywords(articles: list[dict]) -> list[dict]:
@@ -651,6 +747,11 @@ def main():
     for source, count in filtered_source_counts.items():
         print(f"      - {source}: {count}件")
     
+    # 古い記事の自動削除（新規記事追加前に実行）
+    deleted_count = exporter.delete_old_articles(ARTICLE_RETENTION_DAYS)
+    if deleted_count > 0:
+        print(f"   📊 削除後の総記事数: {exporter.get_total_article_count()}件")
+    
     # 重複除外
     new_articles = [a for a in filtered_articles if not exporter.is_duplicate(a.get("url", ""), a.get("title", ""))]
     skipped = len(filtered_articles) - len(new_articles)
@@ -665,6 +766,16 @@ def main():
     
     print(f"   🆕 新規記事: {len(new_articles)}件")
     
+    # 1回の実行で追加する記事数を制限
+    # 重要度の高い記事を優先的に処理するため、上限を設定
+    articles_to_process = new_articles[:MAX_ARTICLES_PER_RUN]
+    skipped_by_limit = len(new_articles) - len(articles_to_process)
+    
+    if skipped_by_limit > 0:
+        print(f"   ⚠️ 追加数制限により {skipped_by_limit}件をスキップ（次回実行時に処理）")
+        print(f"   📌 今回処理する記事: {len(articles_to_process)}件（上限: {MAX_ARTICLES_PER_RUN}件）")
+        logger.info(f"追加数制限により {skipped_by_limit}件をスキップ（上限: {MAX_ARTICLES_PER_RUN}件）")
+    
     # 要約生成 + 重要度スコア
     summarizer = ArticleSummarizer(api_key)
     print("\n✍️ OpenAI APIで要約 & 重要度評価中...")
@@ -672,11 +783,11 @@ def main():
     added = 0
     score_stats = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
     
-    for i, article in enumerate(new_articles, 1):
+    for i, article in enumerate(articles_to_process, 1):
         source = article.get('source', '')
         title = article.get('title', '')[:35]
-        print(f"   [{i}/{len(new_articles)}] [{source}] {title}...")
-        logger.info(f"[{i}/{len(new_articles)}] [{source}] {title[:50]}...")
+        print(f"   [{i}/{len(articles_to_process)}] [{source}] {title}...")
+        logger.info(f"[{i}/{len(articles_to_process)}] [{source}] {title[:50]}...")
         
         try:
             result = summarizer.summarize_and_score(article)
@@ -698,9 +809,9 @@ def main():
         
         time.sleep(0.5)
     
-    # サイト別集計
+    # サイト別集計（処理した記事のみ）
     source_counts = {}
-    for article in new_articles:
+    for article in articles_to_process:
         source = article.get('source', 'Unknown')
         source_counts[source] = source_counts.get(source, 0) + 1
     
@@ -710,8 +821,10 @@ def main():
     print("\n" + "=" * 70)
     print("🎉 処理完了！")
     print(f"   📊 収集記事数: {len(filtered_articles)}件")
-    print(f"   ⏭️ スキップ: {skipped}件")
-    print(f"   🆕 新規追加: {added}件")
+    print(f"   ⏭️ 既存記事をスキップ: {skipped}件")
+    if skipped_by_limit > 0:
+        print(f"   ⚠️ 追加数制限によりスキップ: {skipped_by_limit}件（次回実行時に処理）")
+    print(f"   🆕 新規追加: {added}件（上限: {MAX_ARTICLES_PER_RUN}件）")
     print(f"   📂 サイト別内訳:")
     for source, count in source_counts.items():
         print(f"      - {source}: {count}件")

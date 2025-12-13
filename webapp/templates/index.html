@@ -872,7 +872,9 @@
                         </td>
                         <td class="col-title">
                             <div class="news-title">
-                                {% if news.url %}
+                                {% if news.id %}
+                                <a href="/article/{{ news.id }}">{{ news.title }}</a>
+                                {% elif news.url %}
                                 <a href="{{ news.url }}" target="_blank" rel="noopener">{{ news.title }}</a>
                                 {% else %}
                                 {{ news.title }}
