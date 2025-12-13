@@ -9,6 +9,7 @@ import sys
 import traceback
 import hashlib
 import urllib.parse
+import re
 from flask import Flask, render_template, jsonify, request, Response, abort
 from datetime import datetime
 
@@ -48,6 +49,70 @@ def generate_article_id(title, date, source):
     # SHA256ハッシュを生成し、最初の16文字を使用
     article_id = hashlib.sha256(combined.encode('utf-8')).hexdigest()[:16]
     return article_id
+
+
+def convert_to_iso8601(date_str):
+    """日付文字列をISO 8601形式に変換"""
+    if not date_str:
+        return None
+    
+    # 様々な日付形式に対応
+    date_formats = [
+        "%Y年%m月%d日 %H時%M分",  # 2025年12月9日 15時30分
+        "%Y年%m月%d日",            # 2025年12月9日
+        "%Y-%m-%d %H:%M:%S",       # 2025-12-09 15:30:00
+        "%Y-%m-%d",                # 2025-12-09
+        "%Y/%m/%d %H:%M:%S",       # 2025/12/09 15:30:00
+        "%Y/%m/%d",                # 2025/12/09
+    ]
+    
+    # 時刻部分を分離
+    time_part = ""
+    if "時" in date_str and "分" in date_str:
+        # 2025年12月9日 15時30分 の形式
+        try:
+            # 日付部分と時刻部分を分離
+            if " " in date_str:
+                date_part, time_part = date_str.split(" ", 1)
+            else:
+                date_part = date_str
+                time_part = ""
+            
+            # 時刻を抽出
+            hour = 0
+            minute = 0
+            if time_part:
+                hour_match = re.search(r'(\d+)時', time_part)
+                minute_match = re.search(r'(\d+)分', time_part)
+                if hour_match:
+                    hour = int(hour_match.group(1))
+                if minute_match:
+                    minute = int(minute_match.group(1))
+            
+            # 日付をパース
+            date_only = re.sub(r'\d+時\d+分', '', date_part).strip()
+            for fmt in ["%Y年%m月%d日", "%Y-%m-%d", "%Y/%m/%d"]:
+                try:
+                    parsed_date = datetime.strptime(date_only, fmt)
+                    # ISO 8601形式に変換（JST: UTC+9）
+                    iso_date = parsed_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                    return iso_date.strftime("%Y-%m-%dT%H:%M:%S+09:00")
+                except ValueError:
+                    continue
+        except Exception:
+            pass
+    
+    # 通常の日付形式を試す
+    for fmt in date_formats:
+        try:
+            parsed_date = datetime.strptime(date_str, fmt)
+            # ISO 8601形式に変換（JST: UTC+9）
+            return parsed_date.strftime("%Y-%m-%dT%H:%M:%S+09:00")
+        except ValueError:
+            continue
+    
+    # パースできない場合は元の文字列を返す
+    return date_str
 
 
 def get_sheets_client():
@@ -374,13 +439,17 @@ def article_detail(article_id):
         base_url = request.url_root.rstrip('/')
         article_url = f"{base_url}/article/{article_id}"
         
+        # 日付をISO 8601形式に変換
+        iso_date = convert_to_iso8601(article.get("date", ""))
+        
         logger.info(f"記事詳細ページを表示: article_id={article_id}, title={article['title'][:50]}")
         
         return render_template('article.html',
                               article=article,
                               related_articles=related_articles,
                               base_url=base_url,
-                              article_url=article_url)
+                              article_url=article_url,
+                              iso_date=iso_date)
     except Exception as e:
         log_exception(logger, e, f"記事詳細ページ表示エラー: article_id={article_id}")
         abort(500)
