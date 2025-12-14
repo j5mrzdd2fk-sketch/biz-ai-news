@@ -10,7 +10,7 @@ import traceback
 import hashlib
 import urllib.parse
 import re
-from flask import Flask, render_template, jsonify, request, Response, abort
+from flask import Flask, render_template, jsonify, request, Response, abort, make_response
 from datetime import datetime
 
 # 親ディレクトリをパスに追加
@@ -23,6 +23,9 @@ from google.oauth2.credentials import Credentials
 from logger_config import get_webapp_logger, log_exception
 
 app = Flask(__name__)
+
+# テンプレートの自動リロードを有効化（開発時）
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # ロガーを初期化
 logger = get_webapp_logger()
@@ -326,7 +329,7 @@ def index():
     end_idx = start_idx + per_page
     paginated_news = filtered_news[start_idx:end_idx]
     
-    return render_template('index.html', 
+    response = make_response(render_template('index.html', 
                           news_list=paginated_news, 
                           categories=categories,
                           current_category=category_filter,
@@ -337,7 +340,14 @@ def index():
                           filtered_count=total_filtered,
                           current_page=page,
                           total_pages=total_pages,
-                          per_page=per_page)
+                          per_page=per_page))
+    
+    # キャッシュを防ぐヘッダーを追加
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    return response
 
 
 @app.route('/api/news')

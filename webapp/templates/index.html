@@ -153,6 +153,17 @@
             color: var(--primary);
         }
 
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 8px;
+        }
+
         /* Filters */
         .filters {
             background: var(--bg-card);
@@ -163,6 +174,32 @@
             flex-wrap: wrap;
             gap: 16px;
             align-items: center;
+        }
+
+        .filters-toggle {
+            display: none;
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .filters-toggle:hover {
+            background: var(--primary-dark);
+        }
+
+        .filters-content {
+            width: 100%;
+        }
+
+        .filters.collapsed .filters-content {
+            display: none;
         }
 
         .filter-group {
@@ -234,6 +271,16 @@
             margin-bottom: 40px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
             border: 1px solid var(--border);
+        }
+
+        /* Force mobile layout on small screens */
+        @media screen and (max-width: 900px) {
+            .table-container {
+                display: none !important;
+            }
+            .cards-container {
+                display: block !important;
+            }
         }
 
         table {
@@ -485,24 +532,232 @@
             text-decoration: underline;
         }
 
+        /* Card Layout for Mobile */
+        .cards-container {
+            display: none;
+        }
+
+        .news-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .news-card:active {
+            transform: scale(0.98);
+        }
+
+        .news-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 12px;
+        }
+
+        .card-score {
+            font-size: 1.8rem;
+            font-weight: 700;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .card-meta-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            line-height: 1.5;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .card-summary {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.7;
+            margin-bottom: 16px;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            gap: 12px;
+        }
+
+        .card-date {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .card-link-btn {
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .card-link-btn:active {
+            transform: scale(0.95);
+        }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .col-summary { display: none; }
         }
 
         @media (max-width: 768px) {
+            .container {
+                padding: 0 16px;
+            }
+
+            .header-content {
+                padding: 10px 0;
+            }
+
+            .logo {
+                font-size: 1.2rem;
+            }
+
+            .logo span {
+                font-size: 0.75rem;
+            }
+
+            .stats {
+                font-size: 0.75rem;
+                gap: 12px;
+            }
+
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .filters-toggle {
+                display: block;
+            }
+
             .filters {
                 flex-direction: column;
                 align-items: stretch;
+                padding: 12px 16px;
             }
+
+            .filters-content {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .filter-group {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px;
+            }
+
+            .filter-group label {
+                font-size: 0.8rem;
+            }
+
             .search-form {
                 flex-direction: column;
+                width: 100%;
             }
+
             input[type="text"] {
                 min-width: 100%;
+                padding: 10px 12px;
+                font-size: 0.9rem;
             }
+
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+                width: 100%;
+            }
+
+            .legend {
+                flex-direction: column;
+                gap: 12px;
+                padding: 12px 16px;
+                font-size: 0.75rem;
+            }
+
+            .legend-title {
+                font-size: 0.85rem;
+            }
+
+            .legend-item {
+                font-size: 0.75rem;
+            }
+
+            /* Hide table on mobile */
+            .table-container {
+                display: none !important;
+            }
+
+            /* Show cards on mobile */
+            .cards-container {
+                display: block !important;
+            }
+
             .col-category { display: none; }
             .col-tags { display: none; }
+
+            .pagination {
+                flex-direction: column;
+                gap: 12px;
+                padding: 16px;
+            }
+
+            .pagination-info {
+                font-size: 0.8rem;
+                text-align: center;
+            }
+
+            .pagination-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .page-link {
+                min-width: 44px;
+                height: 44px;
+                font-size: 0.85rem;
+            }
         }
 
         /* Pagination */
@@ -778,43 +1033,48 @@
     </header>
 
     <main class="container">
-        <form class="filters" method="get" action="/">
-            <div class="filter-group">
-                <label>カテゴリ:</label>
-                <select name="category" onchange="this.form.submit()">
-                    <option value="">すべて</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat }}" {% if cat == current_category %}selected{% endif %}>{{ cat }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <label>重要度:</label>
-                <select name="score" onchange="this.form.submit()">
-                    <option value="">すべて</option>
-                    <option value="5" {% if current_score == '5' %}selected{% endif %}>⭐5 必読のみ</option>
-                    <option value="4" {% if current_score == '4' %}selected{% endif %}>⭐4以上</option>
-                    <option value="3" {% if current_score == '3' %}selected{% endif %}>⭐3以上</option>
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <label>並び順:</label>
-                <select name="sort" onchange="this.form.submit()">
-                    <option value="date" {% if current_sort == 'date' %}selected{% endif %}>日付順（新着順）</option>
-                    <option value="score" {% if current_sort == 'score' %}selected{% endif %}>重要度順（高→低）</option>
-                    <option value="category" {% if current_sort == 'category' %}selected{% endif %}>カテゴリ順</option>
-                    <option value="source" {% if current_sort == 'source' %}selected{% endif %}>ソース順</option>
-                </select>
-            </div>
+        <form class="filters" method="get" action="/" id="filtersForm">
+            <button type="button" class="filters-toggle" onclick="toggleFilters()">
+                🔍 フィルター・検索 <span id="filtersToggleIcon">▼</span>
+            </button>
+            <div class="filters-content">
+                <div class="filter-group">
+                    <label>カテゴリ:</label>
+                    <select name="category" onchange="this.form.submit()">
+                        <option value="">すべて</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if cat == current_category %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>重要度:</label>
+                    <select name="score" onchange="this.form.submit()">
+                        <option value="">すべて</option>
+                        <option value="5" {% if current_score == '5' %}selected{% endif %}>⭐5 必読のみ</option>
+                        <option value="4" {% if current_score == '4' %}selected{% endif %}>⭐4以上</option>
+                        <option value="3" {% if current_score == '3' %}selected{% endif %}>⭐3以上</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>並び順:</label>
+                    <select name="sort" onchange="this.form.submit()">
+                        <option value="date" {% if current_sort == 'date' %}selected{% endif %}>日付順（新着順）</option>
+                        <option value="score" {% if current_sort == 'score' %}selected{% endif %}>重要度順（高→低）</option>
+                        <option value="category" {% if current_sort == 'category' %}selected{% endif %}>カテゴリ順</option>
+                        <option value="source" {% if current_sort == 'source' %}selected{% endif %}>ソース順</option>
+                    </select>
+                </div>
 
-            <div class="search-form">
-                <input type="text" name="q" placeholder="🔍 キーワードで検索..." value="{{ current_search }}">
-                <button type="submit" class="btn">検索</button>
-                {% if current_category or current_score or current_search or current_sort %}
-                <a href="/" class="btn btn-secondary">クリア</a>
-                {% endif %}
+                <div class="search-form">
+                    <input type="text" name="q" placeholder="🔍 キーワードで検索..." value="{{ current_search }}">
+                    <button type="submit" class="btn">検索</button>
+                    {% if current_category or current_score or current_search or current_sort %}
+                    <a href="/" class="btn btn-secondary">クリア</a>
+                    {% endif %}
+                </div>
             </div>
         </form>
 
@@ -842,6 +1102,7 @@
                 <span>低い</span>
             </div>
         </div>
+        <!-- Desktop Table View -->
         <div class="table-container">
             <table>
                 <thead>
@@ -905,6 +1166,41 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="cards-container">
+            {% for news in news_list %}
+            <div class="news-card" onclick="window.location.href='{% if news.id %}/article/{{ news.id }}{% elif news.url %}{{ news.url }}{% endif %}'">
+                <div class="news-card-header">
+                    <span class="card-score score-{{ news.score }}">{{ news.score_display }}</span>
+                    <div class="card-meta-badges">
+                        <span class="source-badge">{{ news.source }}</span>
+                        <span class="category-badge {{ news.category }}">{{ news.category }}</span>
+                    </div>
+                </div>
+                <div class="card-title">
+                    {% if news.id %}
+                    <a href="/article/{{ news.id }}">{{ news.title }}</a>
+                    {% elif news.url %}
+                    <a href="{{ news.url }}" target="_blank" rel="noopener">{{ news.title }}</a>
+                    {% else %}
+                    {{ news.title }}
+                    {% endif %}
+                </div>
+                <div class="card-summary">
+                    {{ news.summary[:200] }}{% if news.summary|length > 200 %}...{% endif %}
+                </div>
+                <div class="card-footer">
+                    <span class="card-date">📅 {{ news.date }}</span>
+                    {% if news.url %}
+                    <a href="{{ news.url }}" target="_blank" rel="noopener" class="card-link-btn" onclick="event.stopPropagation();">
+                        🔗 記事を開く
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
         </div>
         
         <!-- ページネーション -->
@@ -1036,6 +1332,84 @@
     </footer>
 
     <script>
+        // 画面サイズに応じてレイアウトを切り替え
+        function toggleLayout() {
+            const tableContainer = document.querySelector('.table-container');
+            const cardsContainer = document.querySelector('.cards-container');
+            const isMobile = window.innerWidth <= 900;
+            
+            console.log('画面幅:', window.innerWidth, 'isMobile:', isMobile);
+            console.log('テーブル要素:', tableContainer);
+            console.log('カード要素:', cardsContainer);
+            
+            if (isMobile) {
+                // スマホ: テーブルを非表示、カードを表示
+                if (tableContainer) {
+                    tableContainer.style.display = 'none';
+                    console.log('テーブルを非表示にしました');
+                }
+                if (cardsContainer) {
+                    cardsContainer.style.display = 'block';
+                    console.log('カードを表示しました');
+                }
+            } else {
+                // PC: カードを非表示、テーブルを表示
+                if (tableContainer) {
+                    tableContainer.style.display = '';
+                    console.log('テーブルを表示しました');
+                }
+                if (cardsContainer) {
+                    cardsContainer.style.display = 'none';
+                    console.log('カードを非表示にしました');
+                }
+            }
+        }
+
+        // 即座に実行（DOMが読み込まれたら）
+        function initLayout() {
+            // 少し遅延させて確実に実行
+            setTimeout(toggleLayout, 100);
+            setTimeout(toggleLayout, 500);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initLayout);
+        } else {
+            // 既に読み込まれている場合は即座に実行
+            initLayout();
+        }
+
+        // ページ読み込み時とリサイズ時に実行
+        window.addEventListener('load', toggleLayout);
+        window.addEventListener('resize', toggleLayout);
+        
+        // MutationObserverでDOMの変更を監視
+        const observer = new MutationObserver(() => {
+            toggleLayout();
+        });
+        
+        // body要素の変更を監視
+        if (document.body) {
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        }
+        
+        // 初期状態でスマホの場合は折りたたむ
+        if (window.innerWidth <= 768) {
+            document.getElementById('filtersForm').classList.add('collapsed');
+            document.getElementById('filtersToggleIcon').textContent = '▶';
+        }
+
+        // フィルターの折りたたみ機能
+        function toggleFilters() {
+            const filters = document.getElementById('filtersForm');
+            const icon = document.getElementById('filtersToggleIcon');
+            filters.classList.toggle('collapsed');
+            icon.textContent = filters.classList.contains('collapsed') ? '▶' : '▼';
+        }
+
         // アンケート回答データ
         const surveyData = {};
         let currentQuestion = 1;
