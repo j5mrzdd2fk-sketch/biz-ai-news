@@ -597,7 +597,7 @@
             line-height: 1.7;
             margin-bottom: 16px;
             display: -webkit-box;
-            -webkit-line-clamp: 4;
+            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -633,6 +633,163 @@
 
         .card-link-btn:active {
             transform: scale(0.95);
+        }
+
+        /* Read More Button */
+        .read-more-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 4px 0;
+            margin-top: 8px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .read-more-btn:hover {
+            color: var(--primary-dark);
+        }
+
+        .card-summary.expanded {
+            display: block;
+            -webkit-line-clamp: unset;
+        }
+
+        /* Floating Action Button (FAB) */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            z-index: 1000;
+            transition: all 0.3s;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .fab.visible {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .fab:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .fab:active {
+            transform: translateY(0) scale(0.95);
+        }
+
+        /* Skeleton Loading */
+        .skeleton-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            gap: 12px;
+        }
+
+        .skeleton-score {
+            width: 40px;
+            height: 40px;
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .skeleton-badges {
+            flex: 1;
+            display: flex;
+            gap: 8px;
+        }
+
+        .skeleton-badge {
+            width: 80px;
+            height: 24px;
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .skeleton-title {
+            width: 100%;
+            height: 20px;
+            background: var(--border);
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-title.short {
+            width: 70%;
+        }
+
+        .skeleton-summary {
+            width: 100%;
+            height: 16px;
+            background: var(--border);
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-summary:nth-child(2) {
+            width: 90%;
+        }
+
+        .skeleton-summary:nth-child(3) {
+            width: 80%;
+        }
+
+        .skeleton-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .skeleton-date {
+            width: 120px;
+            height: 16px;
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .skeleton-button {
+            width: 100px;
+            height: 36px;
+            background: var(--border);
+            border-radius: 8px;
+        }
+
+        @keyframes skeleton-pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
         }
 
         /* Responsive */
@@ -732,6 +889,15 @@
             /* Show cards on mobile */
             .cards-container {
                 display: block !important;
+            }
+
+            /* FAB for mobile */
+            .fab {
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                font-size: 1.3rem;
             }
 
             .col-category { display: none; }
@@ -1188,8 +1354,13 @@
                     {{ news.title }}
                     {% endif %}
                 </div>
-                <div class="card-summary">
-                    {{ news.summary[:200] }}{% if news.summary|length > 200 %}...{% endif %}
+                <div class="card-summary" id="summary-{{ loop.index }}">
+                    <span class="summary-text">{{ news.summary[:150] }}{% if news.summary|length > 150 %}...{% endif %}</span>
+                    {% if news.summary|length > 150 %}
+                    <button class="read-more-btn" onclick="event.stopPropagation(); toggleReadMore({{ loop.index }}, '{{ news.summary|replace("'", "\\'")|replace('"', '\\"') }}');">
+                        続きを読む
+                    </button>
+                    {% endif %}
                 </div>
                 <div class="card-footer">
                     <span class="card-date">📅 {{ news.date }}</span>
@@ -1230,6 +1401,30 @@
             </div>
         </div>
         {% endif %}
+
+        <!-- Skeleton Loading (初期表示時) -->
+        <div class="cards-container" id="skeleton-container" style="display: none;">
+            {% for i in range(5) %}
+            <div class="skeleton-card">
+                <div class="skeleton-header">
+                    <div class="skeleton-score"></div>
+                    <div class="skeleton-badges">
+                        <div class="skeleton-badge"></div>
+                        <div class="skeleton-badge"></div>
+                    </div>
+                </div>
+                <div class="skeleton-title"></div>
+                <div class="skeleton-title short"></div>
+                <div class="skeleton-summary"></div>
+                <div class="skeleton-summary"></div>
+                <div class="skeleton-summary"></div>
+                <div class="skeleton-footer">
+                    <div class="skeleton-date"></div>
+                    <div class="skeleton-button"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
         
         {% else %}
         <div class="empty-state">
@@ -1331,7 +1526,86 @@
         </div>
     </footer>
 
+    <!-- Floating Action Button (トップに戻る) -->
+    <button class="fab" id="fabTop" onclick="scrollToTop()" aria-label="トップに戻る">
+        ↑
+    </button>
+
     <script>
+        // Read More機能
+        function toggleReadMore(index, fullText) {
+            const summaryEl = document.getElementById(`summary-${index}`);
+            const summaryText = summaryEl.querySelector('.summary-text');
+            const readMoreBtn = summaryEl.querySelector('.read-more-btn');
+            
+            if (summaryEl.classList.contains('expanded')) {
+                // 折りたたむ
+                summaryEl.classList.remove('expanded');
+                summaryText.textContent = fullText.substring(0, 150) + '...';
+                readMoreBtn.textContent = '続きを読む';
+            } else {
+                // 展開する
+                summaryEl.classList.add('expanded');
+                summaryText.textContent = fullText;
+                readMoreBtn.textContent = '折りたたむ';
+            }
+        }
+
+        // トップに戻る機能
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // FABの表示/非表示
+        function toggleFAB() {
+            const fab = document.getElementById('fabTop');
+            if (window.scrollY > 300) {
+                fab.classList.add('visible');
+            } else {
+                fab.classList.remove('visible');
+            }
+        }
+
+        // スクロールイベント
+        window.addEventListener('scroll', toggleFAB);
+        
+        // 初期状態を確認
+        toggleFAB();
+
+        // スケルトンローディング（フィルター変更時など）
+        function showSkeleton() {
+            const skeletonContainer = document.getElementById('skeleton-container');
+            const cardsContainer = document.querySelector('.cards-container:not(#skeleton-container)');
+            if (skeletonContainer && cardsContainer) {
+                cardsContainer.style.display = 'none';
+                skeletonContainer.style.display = 'block';
+            }
+        }
+
+        function hideSkeleton() {
+            const skeletonContainer = document.getElementById('skeleton-container');
+            const cardsContainer = document.querySelector('.cards-container:not(#skeleton-container)');
+            if (skeletonContainer && cardsContainer) {
+                skeletonContainer.style.display = 'none';
+                cardsContainer.style.display = 'block';
+            }
+        }
+
+        // ページ読み込み完了時にスケルトンを非表示
+        window.addEventListener('load', function() {
+            hideSkeleton();
+        });
+
+        // フォーム送信時にスケルトンを表示（フィルター変更時）
+        const filterForm = document.getElementById('filtersForm');
+        if (filterForm) {
+            filterForm.addEventListener('submit', function() {
+                showSkeleton();
+            });
+        }
         // 画面サイズに応じてレイアウトを切り替え
         function toggleLayout() {
             const tableContainer = document.querySelector('.table-container');
