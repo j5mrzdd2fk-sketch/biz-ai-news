@@ -25,10 +25,10 @@ CREDENTIALS_FILE = "/Users/masak/Desktop/ニューススクレイピング/crede
 TOKEN_FILE = "/Users/masak/Desktop/ニューススクレイピング/token.json"
 
 # スプレッドシート名
-SPREADSHEET_NAME = "Ledge.ai AIニュース要約"
+SPREADSHEET_NAME = "AIニュース要約（マルチサイト）"
 
-# 分類ごとのシート名
-SHEET_NAMES = ["企業効率化", "DX・デジタル化", "企業導入", "その他"]
+# 分類ごとのシート名（すべてのシートを処理する場合は空リスト）
+SHEET_NAMES = []  # 空の場合は全シートを処理
 
 
 def normalize_url(url: str) -> str:
@@ -133,13 +133,23 @@ def remove_duplicates():
     total_deleted = 0
     
     # 各シートを処理
-    for sheet_name in SHEET_NAMES:
-        try:
-            worksheet = spreadsheet.worksheet(sheet_name)
-            print(f"\n📋 シート「{sheet_name}」を処理中...")
-        except gspread.WorksheetNotFound:
-            print(f"   ⚠️ シート「{sheet_name}」が見つかりません。スキップします。")
-            continue
+    sheets_to_process = SHEET_NAMES if SHEET_NAMES else spreadsheet.worksheets()
+    
+    for sheet in sheets_to_process:
+        if isinstance(sheet, str):
+            # シート名で指定されている場合
+            try:
+                worksheet = spreadsheet.worksheet(sheet)
+                sheet_name = sheet
+            except gspread.WorksheetNotFound:
+                print(f"   ⚠️ シート「{sheet}」が見つかりません。スキップします。")
+                continue
+        else:
+            # ワークシートオブジェクトの場合
+            worksheet = sheet
+            sheet_name = sheet.title
+        
+        print(f"\n📋 シート「{sheet_name}」を処理中...")
         
         # 全データを取得
         all_values = worksheet.get_all_values()
@@ -159,8 +169,15 @@ def remove_duplicates():
             if len(row) < 7:
                 continue
             
-            title = row[1] if len(row) > 1 else ""
-            url = row[6] if len(row) > 6 else ""
+            # 列のインデックスを修正（app.pyと合わせる）
+            # row[0]: No, row[1]: ソース, row[2]: タイトル, row[3]: 日付, row[4]: タグ, row[5]: 重要度, row[6]: 要約, row[7] or row[8]: URL
+            title = row[2] if len(row) > 2 else ""
+            # URLはI列（row[8]）またはH列（row[7]）から取得
+            url = ""
+            if len(row) > 8 and row[8] and row[8].startswith("http"):
+                url = row[8]
+            elif len(row) > 7 and row[7] and row[7].startswith("http"):
+                url = row[7]
             
             # URLを正規化
             normalized_url = normalize_url(url)

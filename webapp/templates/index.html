@@ -196,6 +196,10 @@
 
         .filters-content {
             width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: nowrap;
         }
 
         .filters.collapsed .filters-content {
@@ -206,6 +210,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            flex-shrink: 0;
         }
 
         .filter-group label {
@@ -236,6 +241,7 @@
             gap: 8px;
             flex: 1;
             justify-content: flex-end;
+            min-width: 0;
         }
 
         .btn {
@@ -837,6 +843,7 @@
                 display: flex;
                 flex-direction: column;
                 gap: 12px;
+                flex-wrap: wrap;
             }
 
             .filter-group {

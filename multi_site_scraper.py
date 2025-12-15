@@ -12,6 +12,7 @@
 """
 
 import os
+import re
 import time
 import traceback
 from datetime import datetime, timedelta
@@ -29,8 +30,8 @@ from google.auth.transport.requests import Request
 from scrapers import LedgeAiScraper, AINowScraper, PRTimesScraper, ZDNetScraper, ITmediaAiPlusScraper
 
 # 設定: 1回の実行で追加する記事数の上限
-# 環境変数 MAX_ARTICLES_PER_RUN で変更可能（デフォルト: 10件）
-MAX_ARTICLES_PER_RUN = int(os.getenv('MAX_ARTICLES_PER_RUN', '10'))
+# 環境変数 MAX_ARTICLES_PER_RUN で変更可能（デフォルト: 15件）
+MAX_ARTICLES_PER_RUN = int(os.getenv('MAX_ARTICLES_PER_RUN', '15'))
 
 # 設定: 古い記事を自動削除する期間（日数）
 # 環境変数 ARTICLE_RETENTION_DAYS で変更可能（デフォルト: 45日）
@@ -72,9 +73,7 @@ KEYWORD_CATEGORIES = {
     ],
     "AI・テクノロジー": [
         "AI", "人工知能", "機械学習", "生成AI", "ChatGPT", "GPT", "LLM",
-        "データ分析", "ロボティクス", "自動化", "AI導入", "AI活用",
-        "テクノロジー", "技術", "イノベーション", "デジタル", "クラウド",
-        "API", "ソフトウェア", "ハードウェア", "システム", "プラットフォーム",
+        "AI導入", "AI活用", "データ分析",
     ],
 }
 
@@ -182,6 +181,8 @@ class GoogleSheetsExporter:
         self.worksheets = {}  # カテゴリ名 -> worksheet
         self.existing_urls = set()
         self.existing_titles = set()
+        self.normalized_urls = {}  # 正規化されたURL -> 元のURL
+        self.normalized_titles = {}  # 正規化されたタイトル -> 元のタイトル
         
         self._authenticate()
         self._setup_spreadsheet()
@@ -387,30 +388,126 @@ class GoogleSheetsExporter:
                     raise
         return False
     
+    def _normalize_url(self, url: str) -> str:
+        """URLを正規化（重複チェック用）"""
+        if not url:
+            return ""
+        
+        # HYPERLINK関数から実際のURLを抽出
+        if url.startswith('=HYPERLINK') or url.startswith('=hyperlink') or 'HYPERLINK' in url.upper():
+            match = re.search(r'HYPERLINK\("([^"]+)"', url, re.IGNORECASE)
+            if match:
+                url = match.group(1)
+        
+        # URLを正規化
+        url = url.strip()
+        
+        # "記事を開く"などのテキストが含まれている場合は除外
+        if url == "記事を開く" or url == "Open Article":
+            return ""
+        
+        # 末尾のスラッシュを削除
+        url = url.rstrip('/')
+        
+        # クエリパラメータがある場合は削除（記事URLは通常パラメータ不要）
+        if '?' in url:
+            base, params = url.split('?', 1)
+            # 重要なパラメータ（例: id, article_id）がある場合は保持
+            if 'id=' in params.lower() or 'article_id=' in params.lower():
+                # IDパラメータのみ保持
+                param_dict = {}
+                for param in params.split('&'):
+                    if '=' in param:
+                        key, value = param.split('=', 1)
+                        if key.lower() in ['id', 'article_id', 'article']:
+                            param_dict[key] = value
+                if param_dict:
+                    sorted_params = '&'.join([f"{k}={v}" for k, v in sorted(param_dict.items())])
+                    url = f"{base}?{sorted_params}"
+                else:
+                    url = base
+            else:
+                url = base
+        
+        return url
+    
+    def _normalize_title(self, title: str) -> str:
+        """タイトルを正規化（重複チェック用）"""
+        if not title:
+            return ""
+        
+        # タイトルを正規化（空白を統一、大文字小文字を無視、特殊文字を除去）
+        normalized = title.lower().replace(" ", "").replace("　", "").replace("、", "").replace("，", "")
+        normalized = normalized.replace("・", "").replace("ー", "").replace("-", "").replace("―", "")
+        return normalized
+    
     def _load_existing_urls(self):
-        """全シートから既存URLとタイトルを読み込む"""
+        """全シートから既存URLとタイトルを読み込む（正規化して保存）"""
         total = 0
+        self.existing_urls = set()
         self.existing_titles = set()
+        self.normalized_urls = {}
+        self.normalized_titles = {}
+        
         for category, ws in self.worksheets.items():
             try:
                 all_values = ws.get_all_values()
                 for row in all_values[1:]:
                     if len(row) >= 3:
                         # タイトル（C列）を保存
-                        self.existing_titles.add(row[2])
+                        title = row[2] if len(row) > 2 else ""
+                        if title:
+                            self.existing_titles.add(title)
+                            normalized_title = self._normalize_title(title)
+                            if normalized_title:
+                                self.normalized_titles[normalized_title] = title
+                        
+                        # URL（H列またはI列）を保存
+                        url = ""
+                        if len(row) > 8 and row[8] and row[8].startswith("http"):
+                            url = row[8]
+                        elif len(row) > 7 and row[7] and row[7].startswith("http"):
+                            url = row[7]
+                        
+                        if url:
+                            self.existing_urls.add(url)
+                            normalized_url = self._normalize_url(url)
+                            if normalized_url:
+                                self.normalized_urls[normalized_url] = url
+                        
                         total += 1
             except Exception as e:
                 log_exception(logger, e, f"シート「{category}」から既存URL読み込みエラー")
         if total > 0:
-            print(f"   既存記事数: {total}件")
-            logger.info(f"既存記事数: {total}件")
+            print(f"   既存記事数: {total}件（重複チェック用に正規化済み）")
+            logger.info(f"既存記事数: {total}件（重複チェック用に正規化済み）")
     
     def is_duplicate(self, url: str, title: str = "") -> bool:
-        """URLまたはタイトルが既に存在するかチェック"""
-        if url in self.existing_urls:
-            return True
-        if title and title in self.existing_titles:
-            return True
+        """URLまたはタイトルが既に存在するかチェック（正規化して比較）"""
+        # URLの重複チェック（正規化）
+        if url:
+            normalized_url = self._normalize_url(url)
+            if normalized_url and normalized_url in self.normalized_urls:
+                existing_url = self.normalized_urls[normalized_url]
+                logger.debug(f"URL重複を検出: {url} (既存: {existing_url})")
+                return True
+            # 正規化前のURLもチェック（念のため）
+            if url in self.existing_urls:
+                logger.debug(f"URL重複を検出（正規化前）: {url}")
+                return True
+        
+        # タイトルの重複チェック（正規化）
+        if title:
+            normalized_title = self._normalize_title(title)
+            if normalized_title and normalized_title in self.normalized_titles:
+                existing_title = self.normalized_titles[normalized_title]
+                logger.debug(f"タイトル重複を検出: {title} (既存: {existing_title})")
+                return True
+            # 正規化前のタイトルもチェック（念のため）
+            if title in self.existing_titles:
+                logger.debug(f"タイトル重複を検出（正規化前）: {title}")
+                return True
+        
         return False
     
     def _get_category(self, article: dict) -> str:
@@ -495,8 +592,19 @@ class GoogleSheetsExporter:
         
         # データ更新（リトライ付き）
         self._update_worksheet_with_retry(worksheet, values=[data], range_name=f'A{row_num}:J{row_num}')
-        self.existing_urls.add(url)
-        self.existing_titles.add(title)
+        
+        # 既存URLとタイトルに追加（重複チェック用）
+        if url:
+            self.existing_urls.add(url)
+            normalized_url = self._normalize_url(url)
+            if normalized_url:
+                self.normalized_urls[normalized_url] = url
+        
+        if title:
+            self.existing_titles.add(title)
+            normalized_title = self._normalize_title(title)
+            if normalized_title:
+                self.normalized_titles[normalized_title] = title
         
         # スコアに応じた背景色
         score_colors = {
@@ -669,6 +777,52 @@ def filter_by_keywords(articles: list[dict]) -> list[dict]:
     return filtered
 
 
+def parse_article_date(date_str: str) -> Optional[datetime]:
+    """記事の日付文字列をdatetimeオブジェクトに変換"""
+    if not date_str:
+        return None
+    
+    # 様々な日付形式に対応
+    date_formats = [
+        "%Y/%m/%d",
+        "%Y年%m月%d日",
+        "%Y-%m-%d",
+        "%Y/%m/%d %H:%M",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y年%m月%d日 %H:%M",
+    ]
+    
+    for fmt in date_formats:
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except ValueError:
+            continue
+    
+    # 正規表現で抽出を試みる
+    date_match = re.search(r'(\d{4})[/年-](\d{1,2})[/月-](\d{1,2})', date_str)
+    if date_match:
+        year, month, day = date_match.groups()
+        try:
+            return datetime(int(year), int(month), int(day))
+        except ValueError:
+            pass
+    
+    return None
+
+
+def sort_articles_by_date(articles: list[dict], reverse: bool = True) -> list[dict]:
+    """記事を日付順にソート（新しい順がデフォルト）"""
+    def get_sort_key(article: dict) -> datetime:
+        date_str = article.get("date", "")
+        parsed_date = parse_article_date(date_str)
+        # 日付が解析できない場合は、非常に古い日付として扱う
+        if parsed_date is None:
+            return datetime(1900, 1, 1)
+        return parsed_date
+    
+    return sorted(articles, key=get_sort_key, reverse=reverse)
+
+
 def main():
     """メイン処理"""
     print("=" * 70)
@@ -713,8 +867,8 @@ def main():
     all_articles = []
     for scraper in scrapers:
         try:
-            # より多くの記事を取得（max_pagesとmax_articlesを増やす）
-            articles = scraper.scrape(max_pages=10, max_articles=30)
+            # 各サイトから最大15件の記事を取得
+            articles = scraper.scrape(max_pages=10, max_articles=15)
             print(f"   📰 {scraper.SITE_NAME}: {len(articles)}件取得")
             logger.info(f"{scraper.SITE_NAME}: {len(articles)}件取得")
             all_articles.extend(articles)
@@ -766,65 +920,143 @@ def main():
     
     print(f"   🆕 新規記事: {len(new_articles)}件")
     
-    # 1回の実行で追加する記事数を制限
-    # 重要度の高い記事を優先的に処理するため、上限を設定
-    articles_to_process = new_articles[:MAX_ARTICLES_PER_RUN]
-    skipped_by_limit = len(new_articles) - len(articles_to_process)
+    # PR TIMESの記事を最大4つまでに制限
+    PR_TIMES_MAX = 4
+    pr_times_articles = [a for a in new_articles if a.get("source", "") == "PR TIMES"]
+    other_articles = [a for a in new_articles if a.get("source", "") != "PR TIMES"]
     
-    if skipped_by_limit > 0:
-        print(f"   ⚠️ 追加数制限により {skipped_by_limit}件をスキップ（次回実行時に処理）")
-        print(f"   📌 今回処理する記事: {len(articles_to_process)}件（上限: {MAX_ARTICLES_PER_RUN}件）")
-        logger.info(f"追加数制限により {skipped_by_limit}件をスキップ（上限: {MAX_ARTICLES_PER_RUN}件）")
+    # PR TIMESの記事を先着順で最大4つまで選ぶ（日付順ではない）
+    pr_times_selected = pr_times_articles[:PR_TIMES_MAX]
+    pr_times_skipped = len(pr_times_articles) - len(pr_times_selected)
     
-    # 要約生成 + 重要度スコア
+    # その他の記事を日付順（新しい順）にソートしてから最大11つ選ぶ
+    print(f"\n📅 その他の記事を日付順（新しい順）にソート中...")
+    other_articles_sorted = sort_articles_by_date(other_articles, reverse=True)
+    other_selected = other_articles_sorted[:MAX_ARTICLES_PER_RUN - PR_TIMES_MAX]
+    other_skipped = len(other_articles) - len(other_selected)
+    
+    # 日付順ソート結果を表示（デバッグ用）
+    if other_articles_sorted:
+        print(f"   📅 日付順ソート結果（上位5件）:")
+        for i, article in enumerate(other_articles_sorted[:5], 1):
+            date_str = article.get("date", "日付不明")
+            title = article.get("title", "")[:40]
+            print(f"      {i}. [{date_str}] {title}...")
+    
+    if pr_times_skipped > 0:
+        print(f"   ⚠️ PR TIMESの記事を{PR_TIMES_MAX}件に制限（{pr_times_skipped}件をスキップ）")
+        logger.info(f"PR TIMESの記事を{PR_TIMES_MAX}件に制限（{pr_times_skipped}件をスキップ）")
+    
+    if other_skipped > 0:
+        print(f"   ⚠️ その他の記事を{MAX_ARTICLES_PER_RUN - PR_TIMES_MAX}件に制限（{other_skipped}件をスキップ）")
+        logger.info(f"その他の記事を{MAX_ARTICLES_PER_RUN - PR_TIMES_MAX}件に制限（{other_skipped}件をスキップ）")
+    
+    # 選んだ記事を結合（まず全記事を要約生成してスコアを取得）
+    articles_to_evaluate = pr_times_selected + other_selected
+    print(f"   📌 今回評価する記事: {len(articles_to_evaluate)}件（PR TIMES: {len(pr_times_selected)}件、その他: {len(other_selected)}件）")
+    
+    # 要約生成 + 重要度スコア（全記事を評価）
     summarizer = ArticleSummarizer(api_key)
     print("\n✍️ OpenAI APIで要約 & 重要度評価中...")
     
-    added = 0
-    score_stats = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    # 記事とスコアを保存するリスト
+    articles_with_scores = []
     
-    for i, article in enumerate(articles_to_process, 1):
+    for i, article in enumerate(articles_to_evaluate, 1):
         source = article.get('source', '')
         title = article.get('title', '')[:35]
-        print(f"   [{i}/{len(articles_to_process)}] [{source}] {title}...")
-        logger.info(f"[{i}/{len(articles_to_process)}] [{source}] {title[:50]}...")
+        print(f"   [{i}/{len(articles_to_evaluate)}] [{source}] {title}...")
+        logger.info(f"[{i}/{len(articles_to_evaluate)}] [{source}] {title[:50]}...")
         
         try:
             result = summarizer.summarize_and_score(article)
             summary = result["summary"]
             score = result["score"]
-            score_stats[score] += 1
             
             print(f"      → 重要度: {'⭐' * score}")
             logger.info(f"重要度: {'⭐' * score}")
             
-            if exporter.add_article(article, summary, score):
-                added += 1
-                logger.info(f"記事を追加しました: {title[:50]}")
-            else:
-                logger.warning(f"記事の追加に失敗しました（重複の可能性）: {title[:50]}")
+            # 記事、要約、スコアを保存
+            articles_with_scores.append({
+                'article': article,
+                'summary': summary,
+                'score': score
+            })
         except Exception as e:
             log_exception(logger, e, f"記事処理エラー: {title[:50]}")
             print(f"      ⚠️ 記事処理エラー: {e}")
         
         time.sleep(0.5)
     
+    # 重要度順にソート（スコアが高い順）
+    articles_with_scores.sort(key=lambda x: x['score'], reverse=True)
+    
+    # PR TIMESを最大4つ、その他を重要度順に選ぶ
+    pr_times_final = []
+    other_final = []
+    
+    for item in articles_with_scores:
+        article = item['article']
+        if article.get("source", "") == "PR TIMES":
+            if len(pr_times_final) < PR_TIMES_MAX:
+                pr_times_final.append(item)
+        else:
+            other_final.append(item)
+    
+    # その他の記事を重要度順に最大11つまで選ぶ
+    other_final = other_final[:MAX_ARTICLES_PER_RUN - PR_TIMES_MAX]
+    
+    # 最終的に反映する記事を結合（PR TIMESを先に、その他を重要度順に）
+    articles_to_process = pr_times_final + other_final
+    
+    print(f"\n📊 重要度順に選定完了:")
+    print(f"   - PR TIMES: {len(pr_times_final)}件")
+    print(f"   - その他（重要度順）: {len(other_final)}件")
+    print(f"   - 合計: {len(articles_to_process)}件")
+    logger.info(f"重要度順に選定完了: PR TIMES {len(pr_times_final)}件、その他 {len(other_final)}件")
+    
+    # 記事を反映
+    added = 0
+    score_stats = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    
+    for item in articles_to_process:
+        article = item['article']
+        summary = item['summary']
+        score = item['score']
+        score_stats[score] += 1
+        
+        if exporter.add_article(article, summary, score):
+            added += 1
+            title = article.get('title', '')[:50]
+            logger.info(f"記事を追加しました: {title}")
+        else:
+            title = article.get('title', '')[:50]
+            logger.warning(f"記事の追加に失敗しました（重複の可能性）: {title}")
+    
     # サイト別集計（処理した記事のみ）
     source_counts = {}
-    for article in articles_to_process:
+    for item in articles_to_process:
+        article = item['article']
         source = article.get('source', 'Unknown')
         source_counts[source] = source_counts.get(source, 0) + 1
     
     # スプレッドシートの総記事数を取得
     total_articles = exporter.get_total_article_count()
     
+    # スキップされた記事数を計算
+    total_skipped = pr_times_skipped + other_skipped
+    
     print("\n" + "=" * 70)
     print("🎉 処理完了！")
     print(f"   📊 収集記事数: {len(filtered_articles)}件")
     print(f"   ⏭️ 既存記事をスキップ: {skipped}件")
-    if skipped_by_limit > 0:
-        print(f"   ⚠️ 追加数制限によりスキップ: {skipped_by_limit}件（次回実行時に処理）")
-    print(f"   🆕 新規追加: {added}件（上限: {MAX_ARTICLES_PER_RUN}件）")
+    if total_skipped > 0:
+        print(f"   ⚠️ 追加数制限によりスキップ: {total_skipped}件（次回実行時に処理）")
+        if pr_times_skipped > 0:
+            print(f"      - PR TIMES: {pr_times_skipped}件")
+        if other_skipped > 0:
+            print(f"      - その他: {other_skipped}件")
+    print(f"   🆕 新規追加: {added}件（上限: {MAX_ARTICLES_PER_RUN}件、PR TIMES最大{PR_TIMES_MAX}件）")
     print(f"   📂 サイト別内訳:")
     for source, count in source_counts.items():
         print(f"      - {source}: {count}件")
