@@ -54,10 +54,10 @@ def generate_article_id(title, date, source):
     return article_id
 
 
-def convert_to_iso8601(date_str):
-    """日付文字列をISO 8601形式に変換"""
+def parse_date_to_datetime(date_str):
+    """日付文字列をdatetimeオブジェクトに変換（ソート用）"""
     if not date_str:
-        return None
+        return datetime(1900, 1, 1)  # 日付がない場合は非常に古い日付として扱う
     
     # 様々な日付形式に対応
     date_formats = [
@@ -70,7 +70,6 @@ def convert_to_iso8601(date_str):
     ]
     
     # 時刻部分を分離
-    time_part = ""
     if "時" in date_str and "分" in date_str:
         # 2025年12月9日 15時30分 の形式
         try:
@@ -97,9 +96,7 @@ def convert_to_iso8601(date_str):
             for fmt in ["%Y年%m月%d日", "%Y-%m-%d", "%Y/%m/%d"]:
                 try:
                     parsed_date = datetime.strptime(date_only, fmt)
-                    # ISO 8601形式に変換（JST: UTC+9）
-                    iso_date = parsed_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
-                    return iso_date.strftime("%Y-%m-%dT%H:%M:%S+09:00")
+                    return parsed_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
                 except ValueError:
                     continue
         except Exception:
@@ -108,14 +105,37 @@ def convert_to_iso8601(date_str):
     # 通常の日付形式を試す
     for fmt in date_formats:
         try:
-            parsed_date = datetime.strptime(date_str, fmt)
-            # ISO 8601形式に変換（JST: UTC+9）
-            return parsed_date.strftime("%Y-%m-%dT%H:%M:%S+09:00")
+            return datetime.strptime(date_str, fmt)
         except ValueError:
             continue
     
-    # パースできない場合は元の文字列を返す
-    return date_str
+    # 正規表現で抽出を試みる
+    date_match = re.search(r'(\d{4})[/年-](\d{1,2})[/月-](\d{1,2})', date_str)
+    if date_match:
+        year, month, day = date_match.groups()
+        try:
+            return datetime(int(year), int(month), int(day))
+        except ValueError:
+            pass
+    
+    # パースできない場合は非常に古い日付として扱う
+    return datetime(1900, 1, 1)
+
+
+def convert_to_iso8601(date_str):
+    """日付文字列をISO 8601形式に変換"""
+    if not date_str:
+        return None
+    
+    # parse_date_to_datetimeを使って変換
+    parsed_date = parse_date_to_datetime(date_str)
+    
+    # デフォルト日付の場合はNoneを返す
+    if parsed_date == datetime(1900, 1, 1):
+        return None
+    
+    # ISO 8601形式に変換（JST: UTC+9）
+    return parsed_date.strftime("%Y-%m-%dT%H:%M:%S+09:00")
 
 
 def get_sheets_client():
@@ -229,7 +249,8 @@ def get_all_news(use_cache=True):
                 continue
         
         # 日付順（新しい順）、同日内はスコア順でソート
-        all_news.sort(key=lambda x: (x["date"], x["score"]), reverse=True)
+        # 日付をdatetimeオブジェクトに変換してからソート
+        all_news.sort(key=lambda x: (parse_date_to_datetime(x["date"]), x["score"]), reverse=True)
         
         # キャッシュに保存
         _news_cache = all_news
@@ -312,13 +333,13 @@ def index():
     
     # ソート機能
     if sort_by == 'score':
-        filtered_news.sort(key=lambda x: (x["score"], x["date"]), reverse=True)
+        filtered_news.sort(key=lambda x: (x["score"], parse_date_to_datetime(x["date"])), reverse=True)
     elif sort_by == 'category':
-        filtered_news.sort(key=lambda x: (x["category"], x["date"]), reverse=True)
+        filtered_news.sort(key=lambda x: (x["category"], parse_date_to_datetime(x["date"])), reverse=True)
     elif sort_by == 'source':
-        filtered_news.sort(key=lambda x: (x["source"], x["date"]), reverse=True)
+        filtered_news.sort(key=lambda x: (x["source"], parse_date_to_datetime(x["date"])), reverse=True)
     else:  # date (デフォルト)
-        filtered_news.sort(key=lambda x: (x["date"], x["score"]), reverse=True)
+        filtered_news.sort(key=lambda x: (parse_date_to_datetime(x["date"]), x["score"]), reverse=True)
     
     # ページネーション
     total_filtered = len(filtered_news)
@@ -443,7 +464,7 @@ def article_detail(article_id):
                         break
         
         # 日付順でソート
-        related_articles.sort(key=lambda x: x["date"], reverse=True)
+        related_articles.sort(key=lambda x: parse_date_to_datetime(x["date"]), reverse=True)
         
         # ベースURL
         base_url = request.url_root.rstrip('/')
