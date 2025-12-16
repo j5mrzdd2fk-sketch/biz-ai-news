@@ -687,6 +687,19 @@ Sitemap: https://biz-ai-news.onrender.com/sitemap.xml
         return Response(robots_content, mimetype='text/plain')
 
 
+@app.route('/ads.txt')
+def ads_txt():
+    """ads.txtを返す（Google AdSense用）"""
+    try:
+        ads_content = "google.com, pub-1202448154240053, DIRECT, f08c47fec0942fa0\n"
+        return Response(ads_content, mimetype='text/plain')
+    except Exception as e:
+        log_exception(logger, e, "ads.txt生成エラー")
+        # エラー時でも基本的なads.txtを返す
+        ads_content = "google.com, pub-1202448154240053, DIRECT, f08c47fec0942fa0\n"
+        return Response(ads_content, mimetype='text/plain')
+
+
 @app.errorhandler(404)
 def not_found(error):
     """404エラーハンドラー"""
