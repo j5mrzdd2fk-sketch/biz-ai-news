@@ -7,7 +7,6 @@
 - Ledge.ai
 - AINOW
 - PR TIMES
-- ZDNet Japan
 - ITmedia AI+
 """
 
@@ -27,11 +26,11 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 # スクレイパー
-from scrapers import LedgeAiScraper, AINowScraper, PRTimesScraper, ZDNetScraper, ITmediaAiPlusScraper
+from scrapers import LedgeAiScraper, AINowScraper, PRTimesScraper, ITmediaAiPlusScraper
 
 # 設定: 1回の実行で追加する記事数の上限
-# 環境変数 MAX_ARTICLES_PER_RUN で変更可能（デフォルト: 15件）
-MAX_ARTICLES_PER_RUN = int(os.getenv('MAX_ARTICLES_PER_RUN', '15'))
+# 環境変数 MAX_ARTICLES_PER_RUN で変更可能（デフォルト: 10件）
+MAX_ARTICLES_PER_RUN = int(os.getenv('MAX_ARTICLES_PER_RUN', '10'))
 
 # 設定: 古い記事を自動削除する期間（日数）
 # 環境変数 ARTICLE_RETENTION_DAYS で変更可能（デフォルト: 45日）
@@ -572,6 +571,18 @@ class GoogleSheetsExporter:
         row_num = len(worksheet.col_values(1)) + 1
         article_no = row_num - 1
         
+        # シートの行数が不足している場合は追加
+        current_row_count = worksheet.row_count
+        if row_num > current_row_count:
+            rows_to_add = row_num - current_row_count + 10  # 余裕を持って10行追加
+            try:
+                worksheet.add_rows(rows_to_add)
+                print(f"   📏 シート「{main_category}」に行を{rows_to_add}行追加しました（現在: {current_row_count}行 → {current_row_count + rows_to_add}行）")
+                logger.info(f"シート「{main_category}」に行を{rows_to_add}行追加しました")
+            except Exception as e:
+                log_exception(logger, e, f"シート「{main_category}」への行追加エラー")
+                # エラーが発生しても続行（既存の行数内で試行）
+        
         # 重要度を星で表示
         score_display = "⭐" * score + "☆" * (5 - score)
         
@@ -827,12 +838,12 @@ def main():
     """メイン処理"""
     print("=" * 70)
     print("🤖 マルチサイト対応 AIニューススクレイピング & 要約ツール")
-    print("   📰 対応サイト: Ledge.ai, AINOW, PR TIMES, ZDNet Japan, ITmedia AI+")
+    print("   📰 対応サイト: Ledge.ai, AINOW, PR TIMES, ITmedia AI+")
     print("=" * 70)
     
     logger.info("=" * 70)
     logger.info("マルチサイト対応 AIニューススクレイピング & 要約ツールを開始")
-    logger.info("対応サイト: Ledge.ai, AINOW, PR TIMES, ZDNet Japan, ITmedia AI+")
+    logger.info("対応サイト: Ledge.ai, AINOW, PR TIMES, ITmedia AI+")
     logger.info("=" * 70)
     
     # OpenAI APIキーの確認
@@ -859,7 +870,6 @@ def main():
         LedgeAiScraper(),
         AINowScraper(),
         PRTimesScraper(),
-        ZDNetScraper(),
         ITmediaAiPlusScraper(),
     ]
     
