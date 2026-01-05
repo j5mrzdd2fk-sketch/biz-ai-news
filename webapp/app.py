@@ -628,28 +628,37 @@ def sitemap():
         ET.SubElement(url, 'changefreq').text = 'hourly'
         ET.SubElement(url, 'priority').text = '1.0'
         
-        # 記事の個別ページをサイトマップに追加（最新100件）
+        # 記事の個別ページをサイトマップに追加（全記事対応）
         try:
             news_list = get_all_news()
-            for news in news_list[:100]:  # 最新100件のみ
+            # 全記事をサイトマップに追加（Googleの推奨は50,000件まで）
+            for news in news_list:
                 if news.get('id'):
                     article_url = f"{base_url}/article/{news['id']}"
                     url = ET.SubElement(urlset, 'url')
                     ET.SubElement(url, 'loc').text = article_url
                     # 日付をパースしてlastmodに設定
                     try:
-                        # 日付形式をパース（複数形式に対応）
-                        date_str = news.get('date', '')
-                        if date_str:
-                            # 日付をパース（簡易版）
-                            parsed_date = date_str.split()[0] if ' ' in date_str else date_str
-                            ET.SubElement(url, 'lastmod').text = parsed_date
+                        # 日付をdatetimeオブジェクトに変換
+                        parsed_date = parse_date_to_datetime(news.get('date', ''))
+                        # デフォルト日付（1900-01-01）の場合は現在日時を使用
+                        if parsed_date.year == 1900:
+                            lastmod_date = datetime.now()
                         else:
-                            ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
+                            lastmod_date = parsed_date
+                        ET.SubElement(url, 'lastmod').text = lastmod_date.strftime('%Y-%m-%d')
                     except:
                         ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
+                    # 重要度に応じて優先度を設定
+                    score = news.get('score', 0)
+                    if score >= 4:
+                        priority = '0.9'  # 高重要度記事
+                    elif score >= 3:
+                        priority = '0.8'  # 中重要度記事
+                    else:
+                        priority = '0.7'  # 低重要度記事
                     ET.SubElement(url, 'changefreq').text = 'weekly'
-                    ET.SubElement(url, 'priority').text = '0.8'
+                    ET.SubElement(url, 'priority').text = priority
         except Exception as e:
             log_exception(logger, e, "サイトマップ: 記事ページの追加エラー")
             # エラーが発生してもホームページのURLは含める
@@ -670,8 +679,20 @@ def robots():
     try:
         robots_content = """User-agent: *
 Allow: /
+Allow: /article/
 Disallow: /admin
 Disallow: /api/
+Disallow: /api/
+
+# Googlebot
+User-agent: Googlebot
+Allow: /
+Allow: /article/
+
+# Bingbot
+User-agent: Bingbot
+Allow: /
+Allow: /article/
 
 Sitemap: https://biz-ai-news.onrender.com/sitemap.xml
 """

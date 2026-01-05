@@ -69,6 +69,39 @@
       "sameAs": []
     }
     </script>
+    {% if news_list %}
+    <!-- 構造化データ (JSON-LD) - ItemList for News Articles -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "itemListElement": [
+        {% for news in news_list[:10] %}
+        {
+          "@type": "ListItem",
+          "position": {{ loop.index }},
+          "item": {
+            "@type": "NewsArticle",
+            "headline": "{{ news.title|e }}",
+            "description": "{{ news.summary[:150]|e }}{% if news.summary|length > 150 %}...{% endif %}",
+            "url": "{% if news.id %}https://biz-ai-news.onrender.com/article/{{ news.id }}{% elif news.url %}{{ news.url }}{% else %}https://biz-ai-news.onrender.com{% endif %}",
+            "datePublished": "{{ news.date }}",
+            "author": {
+              "@type": "Organization",
+              "name": "{{ news.source|e }}"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "BIZ AI NEWS"
+            },
+            "articleSection": "{{ news.category|e }}"
+          }
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ]
+    }
+    </script>
+    {% endif %}
     
     <style>
         :root {

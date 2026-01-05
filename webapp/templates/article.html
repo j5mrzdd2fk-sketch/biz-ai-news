@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ article.title }} - BIZ AI NEWS</title>
-    <meta name="description" content="{{ article.summary[:160] }}{% if article.summary|length > 160 %}...{% endif %}">
+    <meta name="description" content="{% if article.summary %}{{ article.summary[:155]|trim }}{% if article.summary|length > 155 %}...{% endif %}{% else %}{{ article.title }} - {{ article.category }}に関する最新ニュース。{% endif %}">
     <meta name="keywords" content="{{ article.tags }},{{ article.category }},AI,人工知能,ニュース,ビジネス">
     
     <!-- OGP (Open Graph Protocol) -->
@@ -27,6 +27,12 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ article.title }}">
     <meta name="twitter:description" content="{{ article.summary[:200] }}{% if article.summary|length > 200 %}...{% endif %}">
+    <meta name="twitter:image" content="{{ base_url }}/static/og-image.png">
+    
+    <!-- OGP Image -->
+    <meta property="og:image" content="{{ base_url }}/static/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     
     <!-- Canonical URL -->
     <link rel="canonical" href="{{ article_url }}">
@@ -55,7 +61,7 @@
       "@context": "https://schema.org",
       "@type": "NewsArticle",
       "headline": "{{ article.title|e }}",
-      "description": "{{ article.summary[:200]|e }}{% if article.summary|length > 200 %}...{% endif %}",
+      "description": "{% if article.summary %}{{ article.summary[:200]|e }}{% if article.summary|length > 200 %}...{% endif %}{% else %}{{ article.title|e }} - {{ article.category|e }}に関する最新ニュース。{% endif %}",
       "datePublished": "{{ iso_date if iso_date else article.date }}",
       "dateModified": "{{ iso_date if iso_date else article.date }}",
       "author": {
@@ -67,8 +73,12 @@
         "name": "BIZ AI NEWS",
         "logo": {
           "@type": "ImageObject",
-          "url": "{{ base_url }}/logo.png"
+          "url": "{{ base_url }}/static/logo.png"
         }
+      },
+      "image": {
+        "@type": "ImageObject",
+        "url": "{{ base_url }}/static/og-image.png"
       },
       "mainEntityOfPage": {
         "@type": "WebPage",
