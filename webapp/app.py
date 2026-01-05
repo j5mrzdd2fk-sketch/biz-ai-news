@@ -451,20 +451,41 @@ def article_detail(article_id):
             logger.warning(f"記事が見つかりません: article_id={article_id}")
             abort(404)
         
-        # 関連記事を取得（同じカテゴリの記事、最大5件）
+        # 関連記事を取得（同じカテゴリの記事、最大10件、より関連性の高い順）
         related_articles = []
         article_categories = [cat.strip() for cat in article["category"].split(",")]
+        article_tags = [tag.strip().lower() for tag in article.get("tags", "").split(",") if tag.strip()]
+        
+        # 関連性スコアを計算してソート
+        scored_articles = []
         for news in news_list:
             if news.get("id") != article_id:
                 news_categories = [cat.strip() for cat in news["category"].split(",")]
-                # カテゴリが重複している記事を関連記事として追加
+                news_tags = [tag.strip().lower() for tag in news.get("tags", "").split(",") if tag.strip()]
+                
+                # 関連性スコアを計算
+                score = 0
+                
+                # カテゴリが一致: +10点
                 if any(cat in news_categories for cat in article_categories):
-                    related_articles.append(news)
-                    if len(related_articles) >= 5:
-                        break
+                    score += 10
+                
+                # タグが一致: +5点（各タグ）
+                common_tags = set(article_tags) & set(news_tags)
+                score += len(common_tags) * 5
+                
+                # 重要度が高い: +スコア値
+                score += news.get("score", 0)
+                
+                # スコアが0より大きい場合のみ追加
+                if score > 0:
+                    scored_articles.append((score, news))
         
-        # 日付順でソート
-        related_articles.sort(key=lambda x: parse_date_to_datetime(x["date"]), reverse=True)
+        # スコア順（降順）、同スコアの場合は日付順（降順）でソート
+        scored_articles.sort(key=lambda x: (x[0], parse_date_to_datetime(x[1]["date"])), reverse=True)
+        
+        # 上位10件を取得
+        related_articles = [article for _, article in scored_articles[:10]]
         
         # ベースURL
         base_url = request.url_root.rstrip('/')
@@ -706,6 +727,88 @@ Allow: /
 Sitemap: https://biz-ai-news.onrender.com/sitemap.xml
 """
         return Response(robots_content, mimetype='text/plain')
+
+
+@app.route('/rss.xml')
+def rss_feed():
+    """RSS 2.0フィードを生成"""
+    try:
+        from datetime import datetime
+        import xml.etree.ElementTree as ET
+        
+        # ニュースデータを取得（最新20件）
+        news_list = get_all_news()[:20]
+        
+        # RSS 2.0形式でXMLを生成
+        rss = ET.Element('rss')
+        rss.set('version', '2.0')
+        rss.set('xmlns:content', 'http://purl.org/rss/1.0/modules/content/')
+        rss.set('xmlns:atom', 'http://www.w3.org/2005/Atom')
+        
+        channel = ET.SubElement(rss, 'channel')
+        
+        # チャンネル情報
+        base_url = 'https://biz-ai-news.onrender.com'
+        ET.SubElement(channel, 'title').text = 'BIZ AI NEWS - ビジネスAIニュースポータル'
+        ET.SubElement(channel, 'link').text = base_url
+        ET.SubElement(channel, 'description').text = 'AIとテクノロジーの最新ニュースを自動収集・要約。ビジネスパーソンに必要なAI情報を効率的にお届けします。'
+        ET.SubElement(channel, 'language').text = 'ja'
+        ET.SubElement(channel, 'lastBuildDate').text = datetime.now().strftime('%a, %d %b %Y %H:%M:%S +0900')
+        ET.SubElement(channel, 'generator').text = 'BIZ AI NEWS'
+        
+        # Atom self link
+        atom_link = ET.SubElement(channel, 'atom:link')
+        atom_link.set('href', f'{base_url}/rss.xml')
+        atom_link.set('rel', 'self')
+        atom_link.set('type', 'application/rss+xml')
+        
+        # 各記事をアイテムとして追加
+        for news in news_list:
+            item = ET.SubElement(channel, 'item')
+            ET.SubElement(item, 'title').text = news.get('title', '')
+            ET.SubElement(item, 'link').text = f"{base_url}/article/{news.get('id', '')}" if news.get('id') else news.get('url', base_url)
+            ET.SubElement(item, 'description').text = news.get('summary', '')[:300] + ('...' if len(news.get('summary', '')) > 300 else '')
+            ET.SubElement(item, 'guid').text = f"{base_url}/article/{news.get('id', '')}" if news.get('id') else news.get('url', base_url)
+            ET.SubElement(item, 'guid').set('isPermaLink', 'true')
+            
+            # 日付をRFC 822形式に変換
+            try:
+                parsed_date = parse_date_to_datetime(news.get('date', ''))
+                if parsed_date.year != 1900:
+                    pub_date = parsed_date.strftime('%a, %d %b %Y %H:%M:%S +0900')
+                else:
+                    pub_date = datetime.now().strftime('%a, %d %b %Y %H:%M:%S +0900')
+            except:
+                pub_date = datetime.now().strftime('%a, %d %b %Y %H:%M:%S +0900')
+            ET.SubElement(item, 'pubDate').text = pub_date
+            
+            # カテゴリ
+            if news.get('category'):
+                ET.SubElement(item, 'category').text = news.get('category', '')
+            
+            # 著者（ソース）
+            if news.get('source'):
+                ET.SubElement(item, 'author').text = news.get('source', '')
+        
+        # XMLを文字列に変換
+        xml_str = ET.tostring(rss, encoding='utf-8', method='xml')
+        xml_str = b'<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
+        
+        response = Response(xml_str, mimetype='application/rss+xml')
+        response.headers['Content-Type'] = 'application/rss+xml; charset=utf-8'
+        return response
+    except Exception as e:
+        log_exception(logger, e, "RSSフィード生成エラー")
+        # エラー時でも基本的なRSSを返す
+        rss_content = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>BIZ AI NEWS</title>
+<link>https://biz-ai-news.onrender.com</link>
+<description>AIとテクノロジーの最新ニュース</description>
+</channel>
+</rss>"""
+        return Response(rss_content, mimetype='application/rss+xml')
 
 
 @app.route('/ads.txt')

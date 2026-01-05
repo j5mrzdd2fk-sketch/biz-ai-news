@@ -347,6 +347,83 @@
             background: var(--bg-hover);
         }
 
+        /* Share Buttons */
+        .share-buttons {
+            margin-top: 30px;
+            padding: 20px;
+            background: var(--primary-light);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .share-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+
+        .share-buttons-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .share-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            color: white;
+        }
+
+        .share-btn svg {
+            flex-shrink: 0;
+        }
+
+        .share-twitter {
+            background: #1DA1F2;
+        }
+
+        .share-twitter:hover {
+            background: #0d8bd9;
+            transform: translateY(-2px);
+        }
+
+        .share-facebook {
+            background: #1877F2;
+        }
+
+        .share-facebook:hover {
+            background: #166fe5;
+            transform: translateY(-2px);
+        }
+
+        .share-linkedin {
+            background: #0A66C2;
+        }
+
+        .share-linkedin:hover {
+            background: #095195;
+            transform: translateY(-2px);
+        }
+
+        .share-copy {
+            background: var(--secondary);
+        }
+
+        .share-copy:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
         /* Related Articles */
         .related-articles {
             margin-top: 40px;
@@ -497,6 +574,19 @@
             .related-item {
                 padding: 16px;
             }
+
+            .share-buttons {
+                padding: 16px;
+            }
+
+            .share-buttons-list {
+                flex-direction: column;
+            }
+
+            .share-btn {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -565,6 +655,53 @@
                     ← 一覧に戻る
                 </a>
             </div>
+
+            <!-- ソーシャルシェアボタン -->
+            <div class="share-buttons">
+                <div class="share-title">📤 この記事をシェア</div>
+                <div class="share-buttons-list">
+                    <a href="https://twitter.com/intent/tweet?url={{ article_url|urlencode }}&text={{ article.title|urlencode }}" 
+                       target="_blank" 
+                       rel="noopener" 
+                       class="share-btn share-twitter"
+                       aria-label="Twitterでシェア">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/>
+                        </svg>
+                        Twitter
+                    </a>
+                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ article_url|urlencode }}" 
+                       target="_blank" 
+                       rel="noopener" 
+                       class="share-btn share-facebook"
+                       aria-label="Facebookでシェア">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
+                        </svg>
+                        Facebook
+                    </a>
+                    <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ article_url|urlencode }}" 
+                       target="_blank" 
+                       rel="noopener" 
+                       class="share-btn share-linkedin"
+                       aria-label="LinkedInでシェア">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/>
+                            <circle cx="4" cy="4" r="2"/>
+                        </svg>
+                        LinkedIn
+                    </a>
+                    <button onclick="copyToClipboard('{{ article_url }}')" 
+                            class="share-btn share-copy"
+                            aria-label="URLをコピー">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                        </svg>
+                        URLをコピー
+                    </button>
+                </div>
+            </div>
         </article>
 
         {% if related_articles %}
@@ -598,6 +735,27 @@
             <p>BIZ AI NEWS © 2024 | 各記事の著作権は元サイトに帰属します</p>
         </div>
     </footer>
+
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                // ボタンのテキストを一時的に変更
+                const btn = event.target.closest('.share-copy');
+                if (btn) {
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>コピーしました！';
+                    btn.style.background = '#5a9a6e';
+                    setTimeout(function() {
+                        btn.innerHTML = originalText;
+                        btn.style.background = '';
+                    }, 2000);
+                }
+            }).catch(function(err) {
+                console.error('コピーに失敗しました:', err);
+                alert('URLをコピーできませんでした。手動でコピーしてください: ' + text);
+            });
+        }
+    </script>
 </body>
 </html>
 
