@@ -453,15 +453,21 @@ def article_detail(article_id):
         
         # 関連記事を取得（同じカテゴリの記事、最大10件、より関連性の高い順）
         related_articles = []
-        article_categories = [cat.strip() for cat in article["category"].split(",")]
-        article_tags = [tag.strip().lower() for tag in article.get("tags", "").split(",") if tag.strip()]
+        # カテゴリとタグを安全に取得
+        article_category_str = article.get("category", "") or ""
+        article_tags_str = article.get("tags", "") or ""
+        article_categories = [cat.strip() for cat in article_category_str.split(",") if cat.strip()]
+        article_tags = [tag.strip().lower() for tag in article_tags_str.split(",") if tag.strip()]
         
         # 関連性スコアを計算してソート
         scored_articles = []
         for news in news_list:
             if news.get("id") != article_id:
-                news_categories = [cat.strip() for cat in news["category"].split(",")]
-                news_tags = [tag.strip().lower() for tag in news.get("tags", "").split(",") if tag.strip()]
+                # カテゴリとタグを安全に取得
+                news_category_str = news.get("category", "") or ""
+                news_tags_str = news.get("tags", "") or ""
+                news_categories = [cat.strip() for cat in news_category_str.split(",") if cat.strip()]
+                news_tags = [tag.strip().lower() for tag in news_tags_str.split(",") if tag.strip()]
                 
                 # 関連性スコアを計算
                 score = 0
@@ -735,9 +741,15 @@ def rss_feed():
     try:
         from datetime import datetime
         import xml.etree.ElementTree as ET
+        import html
         
         # ニュースデータを取得（最新20件）
-        news_list = get_all_news()[:20]
+        try:
+            all_news = get_all_news()
+            news_list = all_news[:20] if all_news else []
+        except Exception as e:
+            log_exception(logger, e, "RSSフィード: ニュースデータ取得エラー")
+            news_list = []
         
         # RSS 2.0形式でXMLを生成
         rss = ET.Element('rss')
@@ -765,11 +777,20 @@ def rss_feed():
         # 各記事をアイテムとして追加
         for news in news_list:
             item = ET.SubElement(channel, 'item')
-            ET.SubElement(item, 'title').text = news.get('title', '')
-            ET.SubElement(item, 'link').text = f"{base_url}/article/{news.get('id', '')}" if news.get('id') else news.get('url', base_url)
-            ET.SubElement(item, 'description').text = news.get('summary', '')[:300] + ('...' if len(news.get('summary', '')) > 300 else '')
-            ET.SubElement(item, 'guid').text = f"{base_url}/article/{news.get('id', '')}" if news.get('id') else news.get('url', base_url)
-            ET.SubElement(item, 'guid').set('isPermaLink', 'true')
+            # XMLエスケープ処理（html.escapeを使用）
+            title = html.escape(news.get('title', ''))
+            summary_text = news.get('summary', '')[:300] + ('...' if len(news.get('summary', '')) > 300 else '')
+            summary = html.escape(summary_text)
+            
+            ET.SubElement(item, 'title').text = title
+            article_link = f"{base_url}/article/{news.get('id', '')}" if news.get('id') else (news.get('url', '') or base_url)
+            ET.SubElement(item, 'link').text = article_link
+            ET.SubElement(item, 'description').text = summary
+            
+            # guid要素を1回だけ作成
+            guid = ET.SubElement(item, 'guid')
+            guid.text = article_link
+            guid.set('isPermaLink', 'true')
             
             # 日付をRFC 822形式に変換
             try:
@@ -783,12 +804,16 @@ def rss_feed():
             ET.SubElement(item, 'pubDate').text = pub_date
             
             # カテゴリ
-            if news.get('category'):
-                ET.SubElement(item, 'category').text = news.get('category', '')
+            category = news.get('category', '')
+            if category:
+                category = html.escape(category)
+                ET.SubElement(item, 'category').text = category
             
             # 著者（ソース）
-            if news.get('source'):
-                ET.SubElement(item, 'author').text = news.get('source', '')
+            source = news.get('source', '')
+            if source:
+                source = html.escape(source)
+                ET.SubElement(item, 'author').text = source
         
         # XMLを文字列に変換
         xml_str = ET.tostring(rss, encoding='utf-8', method='xml')

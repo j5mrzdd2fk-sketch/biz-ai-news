@@ -691,7 +691,7 @@
                         </svg>
                         LinkedIn
                     </a>
-                    <button onclick="copyToClipboard('{{ article_url }}')" 
+                    <button onclick="copyToClipboard(event, '{{ article_url }}')" 
                             class="share-btn share-copy"
                             aria-label="URLをコピー">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -737,7 +737,11 @@
     </footer>
 
     <script>
-        function copyToClipboard(text) {
+        function copyToClipboard(event, text) {
+            if (!event) {
+                console.error('event is not defined');
+                return;
+            }
             navigator.clipboard.writeText(text).then(function() {
                 // ボタンのテキストを一時的に変更
                 const btn = event.target.closest('.share-copy');
