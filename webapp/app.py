@@ -692,12 +692,19 @@ def ads_txt():
     """ads.txtを返す（Google AdSense用）"""
     try:
         ads_content = "google.com, pub-1202448154240053, DIRECT, f08c47fec0942fa0\n"
-        return Response(ads_content, mimetype='text/plain')
+        response = Response(ads_content, mimetype='text/plain')
+        # Google AdSenseクローラーが確実に認識できるようにヘッダーを設定
+        response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+        response.headers['Cache-Control'] = 'public, max-age=3600'  # 1時間キャッシュ
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        return response
     except Exception as e:
         log_exception(logger, e, "ads.txt生成エラー")
         # エラー時でも基本的なads.txtを返す
         ads_content = "google.com, pub-1202448154240053, DIRECT, f08c47fec0942fa0\n"
-        return Response(ads_content, mimetype='text/plain')
+        response = Response(ads_content, mimetype='text/plain')
+        response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+        return response
 
 
 @app.errorhandler(404)
