@@ -1397,10 +1397,10 @@
                     {{ news.title }}
                     {% endif %}
                 </div>
-                <div class="card-summary" id="summary-{{ loop.index }}">
+                <div class="card-summary" id="summary-{{ loop.index }}" data-full-text="{{ news.summary|e }}">
                     <span class="summary-text">{{ news.summary[:150] }}{% if news.summary|length > 150 %}...{% endif %}</span>
                     {% if news.summary|length > 150 %}
-                    <button class="read-more-btn" onclick="event.stopPropagation(); toggleReadMore({{ loop.index }}, '{{ news.summary|replace("'", "\\'")|replace('"', '\\"') }}');">
+                    <button class="read-more-btn" onclick="event.stopPropagation(); toggleReadMore({{ loop.index }});">
                         続きを読む
                     </button>
                     {% endif %}
@@ -1576,10 +1576,11 @@
 
     <script>
         // Read More機能
-        function toggleReadMore(index, fullText) {
+        function toggleReadMore(index) {
             const summaryEl = document.getElementById(`summary-${index}`);
             const summaryText = summaryEl.querySelector('.summary-text');
             const readMoreBtn = summaryEl.querySelector('.read-more-btn');
+            const fullText = summaryEl.getAttribute('data-full-text');
             
             if (summaryEl.classList.contains('expanded')) {
                 // 折りたたむ
