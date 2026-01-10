@@ -711,11 +711,12 @@ class GoogleSheetsExporter:
         return None
     
     def delete_old_articles(self, retention_days: int = 30) -> int:
-        """一定期間経過した古い記事を削除"""
-        print(f"\n🗑️  {retention_days}日以上経過した古い記事を削除中...")
-        logger.info(f"古い記事の削除を開始（保持期間: {retention_days}日）")
+        """一定期間経過した古い記事を削除（★5の記事は永久保存）"""
+        print(f"\n🗑️  {retention_days}日以上経過した古い記事を削除中...（★5は永久保存）")
+        logger.info(f"古い記事の削除を開始（保持期間: {retention_days}日、★5は永久保存）")
         
         total_deleted = 0
+        preserved_count = 0  # ★5で保存された記事数
         cutoff_date = datetime.now() - timedelta(days=retention_days)
         
         for category, ws in self.worksheets.items():
@@ -734,9 +735,19 @@ class GoogleSheetsExporter:
                     
                     date_str = row[3] if len(row) > 3 else ""  # 日付列（4列目、インデックス3）
                     title = row[2] if len(row) > 2 else ""      # タイトル列（3列目、インデックス2）
+                    score_str = row[5] if len(row) > 5 else ""  # 重要度列（6列目、インデックス5）
                     
                     if not date_str or not title:
                         continue
+                    
+                    # ★5の記事は永久保存（削除対象外）
+                    # スコア列から⭐の数を数えて、5個以上あれば永久保存
+                    if score_str:
+                        star_count = score_str.count("⭐")
+                        if star_count >= 5:
+                            preserved_count += 1
+                            logger.debug(f"永久保存: [{category}] 行{row_index} - ★5記事: {title[:50]}...")
+                            continue
                     
                     # 日付をパース
                     article_date = self._parse_date(date_str)
@@ -772,6 +783,10 @@ class GoogleSheetsExporter:
         else:
             print(f"   ✅ 削除対象の記事はありませんでした")
             logger.info("削除対象の記事はありませんでした")
+        
+        if preserved_count > 0:
+            print(f"   💎 {preserved_count}件の★5記事を永久保存しました")
+            logger.info(f"★5記事の永久保存: {preserved_count}件")
         
         return total_deleted
 
